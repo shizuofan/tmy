@@ -1,0 +1,114 @@
+package repositories
+
+import (
+	"database/sql"
+	"time"
+
+	"tmy2/backend/utils"
+)
+
+// Project 工程模型（导出）
+type Project struct {
+	ID          int64     `json:"id"`
+	Name        string    `json:"name"`
+	Description string    `json:"description"`
+	CreatedAt   time.Time `json:"createdAt"`
+	UpdatedAt   time.Time `json:"updatedAt"`
+}
+
+// ProjectRepository 工程数据访问接口
+type ProjectRepository interface {
+	Create(project *Project) error
+	GetAll() ([]*Project, error)
+	GetByID(id int64) (*Project, error)
+	Update(project *Project) error
+	Delete(id int64) error
+}
+
+// projectRepository 工程数据访问实现
+type projectRepository struct {
+	db *sql.DB
+}
+
+// NewProjectRepository 创建工程数据访问实例
+func NewProjectRepository() ProjectRepository {
+	return &projectRepository{
+		db: utils.DB,
+	}
+}
+
+// Create 创建工程
+func (r *projectRepository) Create(project *Project) error {
+	now := time.Now()
+	project.CreatedAt = now
+	project.UpdatedAt = now
+
+	result, err := r.db.Exec(
+		"INSERT INTO projects (name, description, created_at, updated_at) VALUES (?, ?, ?, ?)",
+		project.Name, project.Description, project.CreatedAt, project.UpdatedAt,
+	)
+	if err != nil {
+		return err
+	}
+
+	id, err := result.LastInsertId()
+	if err != nil {
+		return err
+	}
+	project.ID = id
+
+	return nil
+}
+
+// GetAll 获取所有工程
+func (r *projectRepository) GetAll() ([]*Project, error) {
+	rows, err := r.db.Query("SELECT id, name, description, created_at, updated_at FROM projects ORDER BY created_at DESC")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var projects []*Project
+	for rows.Next() {
+		var project Project
+		if err := rows.Scan(&project.ID, &project.Name, &project.Description, &project.CreatedAt, &project.UpdatedAt); err != nil {
+			return nil, err
+		}
+		projects = append(projects, &project)
+	}
+
+	return projects, nil
+}
+
+// GetByID 根据 ID 获取工程
+func (r *projectRepository) GetByID(id int64) (*Project, error) {
+	var project Project
+	err := r.db.QueryRow(
+		"SELECT id, name, description, created_at, updated_at FROM projects WHERE id = ?",
+		id,
+	).Scan(&project.ID, &project.Name, &project.Description, &project.CreatedAt, &project.UpdatedAt)
+
+	if err == sql.ErrNoRows {
+		return nil, nil
+	} else if err != nil {
+		return nil, err
+	}
+
+	return &project, nil
+}
+
+// Update 更新工程
+func (r *projectRepository) Update(project *Project) error {
+	project.UpdatedAt = time.Now()
+	_, err := r.db.Exec(
+		"UPDATE projects SET name = ?, description = ?, updated_at = ? WHERE id = ?",
+		project.Name, project.Description, project.UpdatedAt, project.ID,
+	)
+	return err
+}
+
+// Delete 删除工程
+func (r *projectRepository) Delete(id int64) error {
+	_, err := r.db.Exec("DELETE FROM projects WHERE id = ?", id)
+	return err
+}
