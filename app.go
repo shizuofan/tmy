@@ -152,3 +152,67 @@ func (a *App) ReorderChapters(projectID int64, chapterIDs []int64) error {
 	return repo.ReorderChapters(projectID, chapterIDs)
 }
 
+// 角色相关方法
+
+// CreateCharacter 创建角色
+func (a *App) CreateCharacter(projectID int64, name, description, voiceID string) (int64, error) {
+	repo := repositories.NewCharacterRepository()
+	character := &repositories.Character{
+		ProjectID:   projectID,
+		Name:        name,
+		Description: description,
+		VoiceID:     voiceID,
+	}
+	if err := repo.Create(character); err != nil {
+		return 0, err
+	}
+	return character.ID, nil
+}
+
+// GetCharacters 获取工程角色列表
+func (a *App) GetCharacters(projectID int64) ([]*repositories.Character, error) {
+	repo := repositories.NewCharacterRepository()
+	return repo.GetByProjectID(projectID)
+}
+
+// GetCharacter 获取角色详情
+func (a *App) GetCharacter(id int64) (*repositories.Character, error) {
+	repo := repositories.NewCharacterRepository()
+	return repo.GetByID(id)
+}
+
+// UpdateCharacter 更新角色
+func (a *App) UpdateCharacter(id int64, name, description, voiceID string) error {
+	repo := repositories.NewCharacterRepository()
+	character, err := repo.GetByID(id)
+	if err != nil {
+		return err
+	}
+	if character == nil {
+		return nil
+	}
+
+	character.Name = name
+	character.Description = description
+	character.VoiceID = voiceID
+	return repo.Update(character)
+}
+
+// DeleteCharacter 删除角色
+func (a *App) DeleteCharacter(id int64) error {
+	repo := repositories.NewCharacterRepository()
+	return repo.Delete(id)
+}
+
+// GetVoices 获取所有音色
+func (a *App) GetVoices() ([]*repositories.Voice, error) {
+	repo := repositories.NewCharacterRepository()
+	return repo.GetAllVoices()
+}
+
+// GetVoice 获取音色详情
+func (a *App) GetVoice(id string) (*repositories.Voice, error) {
+	repo := repositories.NewCharacterRepository()
+	return repo.GetVoiceByID(id)
+}
+

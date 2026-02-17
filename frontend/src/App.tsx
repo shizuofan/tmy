@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import HomePage from './pages/HomePage';
 import ProjectDetailsPage from './pages/ProjectDetailsPage';
+import ChapterEditor from './pages/ChapterEditor';
 import './App.css';
 
 function App() {
@@ -11,8 +12,7 @@ function App() {
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/project/:id" element={<ProjectDetailsPage />} />
-          {/* 其他路由将在后续实现 */}
-          {/* <Route path="/project/:id/chapter/:chapterId" element={<ChapterPage />} /> */}
+          <Route path="/project/:projectId/chapter/:chapterId" element={<ChapterEditor />} />
         </Routes>
       </div>
     </Router>

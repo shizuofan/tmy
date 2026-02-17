@@ -4,9 +4,13 @@ import {repositories} from '../models';
 
 export function CreateChapter(arg1:number,arg2:string,arg3:string):Promise<number>;
 
+export function CreateCharacter(arg1:number,arg2:string,arg3:string,arg4:string):Promise<number>;
+
 export function CreateProject(arg1:string,arg2:string):Promise<number>;
 
 export function DeleteChapter(arg1:number):Promise<void>;
+
+export function DeleteCharacter(arg1:number):Promise<void>;
 
 export function DeleteProject(arg1:number):Promise<void>;
 
@@ -14,12 +18,22 @@ export function GetChapter(arg1:number):Promise<repositories.Chapter>;
 
 export function GetChapters(arg1:number):Promise<Array<repositories.Chapter>>;
 
+export function GetCharacter(arg1:number):Promise<repositories.Character>;
+
+export function GetCharacters(arg1:number):Promise<Array<repositories.Character>>;
+
 export function GetProject(arg1:number):Promise<repositories.Project>;
 
 export function GetProjects():Promise<Array<repositories.Project>>;
 
+export function GetVoice(arg1:string):Promise<repositories.Voice>;
+
+export function GetVoices():Promise<Array<repositories.Voice>>;
+
 export function ReorderChapters(arg1:number,arg2:Array<number>):Promise<void>;
 
 export function UpdateChapter(arg1:number,arg2:string,arg3:string):Promise<void>;
+
+export function UpdateCharacter(arg1:number,arg2:string,arg3:string,arg4:string):Promise<void>;
 
 export function UpdateProject(arg1:number,arg2:string,arg3:string):Promise<void>;

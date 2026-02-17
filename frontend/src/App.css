@@ -13,17 +13,16 @@ body {
   -moz-osx-font-smoothing: grayscale;
   background-color: #1B2636;
   color: #FFFFFF;
-  overflow: hidden;
 }
 
 #root {
   width: 100%;
-  height: 100vh;
+  min-height: 100vh;
 }
 
 .app {
   width: 100%;
-  height: 100vh;
+  min-height: 100vh;
 }
 
 /* 滚动条样式 */

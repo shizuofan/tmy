@@ -13,6 +13,13 @@ import {
   UpdateChapter,
   DeleteChapter,
   ReorderChapters,
+  CreateCharacter,
+  GetCharacters,
+  GetCharacter,
+  UpdateCharacter,
+  DeleteCharacter,
+  GetVoices,
+  GetVoice,
 } from "wailsjs/go/main/App";
 
 // 工程相关 API
@@ -174,22 +181,40 @@ export const api = {
     throw new Error("Not implemented");
   },
 
-  // 角色操作（待实现）
+  // 角色操作
   createCharacter: async (
     projectId: number,
     name: string,
     description: string,
     voiceId: string
   ): Promise<number> => {
-    throw new Error("Not implemented");
+    try {
+      const result = await CreateCharacter(projectId, name, description, voiceId);
+      return result;
+    } catch (error) {
+      console.error("Failed to create character:", error);
+      throw error;
+    }
   },
 
   getCharacters: async (projectId: number): Promise<any[]> => {
-    throw new Error("Not implemented");
+    try {
+      const result = await GetCharacters(projectId);
+      return result || [];
+    } catch (error) {
+      console.error("Failed to get characters:", error);
+      throw error;
+    }
   },
 
   getCharacter: async (id: number): Promise<any> => {
-    throw new Error("Not implemented");
+    try {
+      const result = await GetCharacter(id);
+      return result;
+    } catch (error) {
+      console.error("Failed to get character:", error);
+      throw error;
+    }
   },
 
   updateCharacter: async (
@@ -198,11 +223,42 @@ export const api = {
     description: string,
     voiceId: string
   ): Promise<void> => {
-    throw new Error("Not implemented");
+    try {
+      await UpdateCharacter(id, name, description, voiceId);
+    } catch (error) {
+      console.error("Failed to update character:", error);
+      throw error;
+    }
   },
 
   deleteCharacter: async (id: number): Promise<void> => {
-    throw new Error("Not implemented");
+    try {
+      await DeleteCharacter(id);
+    } catch (error) {
+      console.error("Failed to delete character:", error);
+      throw error;
+    }
+  },
+
+  // 音色操作
+  getVoices: async (): Promise<any[]> => {
+    try {
+      const result = await GetVoices();
+      return result || [];
+    } catch (error) {
+      console.error("Failed to get voices:", error);
+      throw error;
+    }
+  },
+
+  getVoice: async (id: string): Promise<any> => {
+    try {
+      const result = await GetVoice(id);
+      return result;
+    } catch (error) {
+      console.error("Failed to get voice:", error);
+      throw error;
+    }
   },
 
   // AI 操作（待实现）

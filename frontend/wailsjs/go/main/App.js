@@ -6,12 +6,20 @@ export function CreateChapter(arg1, arg2, arg3) {
   return window['go']['main']['App']['CreateChapter'](arg1, arg2, arg3);
 }
 
+export function CreateCharacter(arg1, arg2, arg3, arg4) {
+  return window['go']['main']['App']['CreateCharacter'](arg1, arg2, arg3, arg4);
+}
+
 export function CreateProject(arg1, arg2) {
   return window['go']['main']['App']['CreateProject'](arg1, arg2);
 }
 
 export function DeleteChapter(arg1) {
   return window['go']['main']['App']['DeleteChapter'](arg1);
+}
+
+export function DeleteCharacter(arg1) {
+  return window['go']['main']['App']['DeleteCharacter'](arg1);
 }
 
 export function DeleteProject(arg1) {
@@ -26,6 +34,14 @@ export function GetChapters(arg1) {
   return window['go']['main']['App']['GetChapters'](arg1);
 }
 
+export function GetCharacter(arg1) {
+  return window['go']['main']['App']['GetCharacter'](arg1);
+}
+
+export function GetCharacters(arg1) {
+  return window['go']['main']['App']['GetCharacters'](arg1);
+}
+
 export function GetProject(arg1) {
   return window['go']['main']['App']['GetProject'](arg1);
 }
@@ -34,12 +50,24 @@ export function GetProjects() {
   return window['go']['main']['App']['GetProjects']();
 }
 
+export function GetVoice(arg1) {
+  return window['go']['main']['App']['GetVoice'](arg1);
+}
+
+export function GetVoices() {
+  return window['go']['main']['App']['GetVoices']();
+}
+
 export function ReorderChapters(arg1, arg2) {
   return window['go']['main']['App']['ReorderChapters'](arg1, arg2);
 }
 
 export function UpdateChapter(arg1, arg2, arg3) {
   return window['go']['main']['App']['UpdateChapter'](arg1, arg2, arg3);
+}
+
+export function UpdateCharacter(arg1, arg2, arg3, arg4) {
+  return window['go']['main']['App']['UpdateCharacter'](arg1, arg2, arg3, arg4);
 }
 
 export function UpdateProject(arg1, arg2, arg3) {

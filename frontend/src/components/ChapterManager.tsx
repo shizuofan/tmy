@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit2, Trash2, GripVertical, FileText, List, X } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Plus, Edit2, Trash2, GripVertical, FileText, List, X, ExternalLink } from 'lucide-react';
 import api from '../utils/api';
 import { Chapter } from '../types';
 
@@ -12,6 +13,7 @@ const ChapterManager: React.FC<ChapterManagerProps> = ({
   projectId,
   onChapterSelect,
 }) => {
+  const navigate = useNavigate();
   const [chapters, setChapters] = useState<Chapter[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -131,9 +133,8 @@ const ChapterManager: React.FC<ChapterManagerProps> = ({
               onDragStart={(e) => handleDragStart(e, index)}
               onDragOver={handleDragOver}
               onDrop={(e) => handleDrop(e, index)}
-              onClick={() => onChapterSelect?.(chapter)}
             >
-              <div className="chapter-info">
+              <div className="chapter-info" onClick={() => navigate(`/project/${projectId}/chapter/${chapter.id}`)}>
                 <div className="chapter-index">{index + 1}</div>
                 <div className="chapter-content">
                   <h4>{chapter.title}</h4>
@@ -147,15 +148,16 @@ const ChapterManager: React.FC<ChapterManagerProps> = ({
               <div className="chapter-actions">
                 <GripVertical size={20} className="drag-handle" />
                 <button
-                  className="btn-secondary"
+                  className="btn-primary"
                   onClick={(e) => {
                     e.stopPropagation();
-                    console.log('Edit chapter:', chapter.id);
+                    navigate(`/project/${projectId}/chapter/${chapter.id}`);
                   }}
                   disabled={isLoading}
+                  title="打开章节编辑器"
                 >
-                  <Edit2 size={16} />
-                  编辑
+                  <ExternalLink size={16} />
+                  打开
                 </button>
                 <button
                   className="btn-danger"
@@ -234,8 +236,8 @@ const ChapterManager: React.FC<ChapterManagerProps> = ({
 
       <style>{`
         .chapter-manager {
-          background-color: #1E272E;
-          border-radius: 8px;
+          background-color: transparent;
+          border-radius: 0;
           overflow: hidden;
           height: 100%;
           display: flex;
@@ -247,20 +249,20 @@ const ChapterManager: React.FC<ChapterManagerProps> = ({
           justify-content: space-between;
           align-items: center;
           padding: 16px 20px;
-          background-color: #2C3E50;
-          border-bottom: 1px solid #34495E;
+          background: linear-gradient(135deg, #1E2A3A 0%, #1A2432 100%);
+          border-bottom: 1px solid #2D3E54;
         }
 
         .header-left {
           display: flex;
           align-items: center;
           gap: 10px;
-          color: #ECF0F1;
+          color: #CBD5E1;
         }
 
         .header-left h2 {
           margin: 0;
-          font-size: 1.2rem;
+          font-size: 1rem;
           font-weight: 600;
         }
 
@@ -268,6 +270,7 @@ const ChapterManager: React.FC<ChapterManagerProps> = ({
           flex: 1;
           overflow-y: auto;
           padding: 16px;
+          background-color: #151E2B;
         }
 
         .loading-state {
@@ -275,51 +278,51 @@ const ChapterManager: React.FC<ChapterManagerProps> = ({
           flex-direction: column;
           align-items: center;
           justify-content: center;
-          padding: 40px;
-          color: #B0BEC5;
+          padding: 48px;
+          color: #64748B;
         }
 
         .spinner {
-          width: 24px;
-          height: 24px;
-          border: 2px solid #F3F3F3;
-          border-top: 2px solid #00A8FF;
+          width: 28px;
+          height: 28px;
+          border: 3px solid #334155;
+          border-top: 3px solid #00A8FF;
           border-radius: 50%;
           animation: spin 1s linear infinite;
-          margin-bottom: 10px;
+          margin-bottom: 12px;
         }
 
         .empty-state {
           text-align: center;
-          padding: 40px;
-          color: #B0BEC5;
+          padding: 48px;
+          color: #64748B;
         }
 
         .empty-state h3 {
           margin: 16px 0 8px;
-          color: #ECF0F1;
-          font-size: 1.1rem;
+          color: #E2E8F0;
+          font-size: 1.05rem;
         }
 
         .chapter-item {
-          background-color: #2C3E50;
-          border-radius: 8px;
-          padding: 16px;
+          background: linear-gradient(145deg, #1E2A3A 0%, #1A2432 100%);
+          border-radius: 10px;
+          padding: 16px 18px;
           margin-bottom: 12px;
           display: flex;
           justify-content: space-between;
           align-items: center;
           gap: 16px;
           cursor: pointer;
-          transition: all 0.2s;
-          border: 1px solid transparent;
+          transition: all 0.2s ease;
+          border: 1px solid #2D3E54;
         }
 
         .chapter-item:hover {
-          background-color: #34495E;
+          background: linear-gradient(145deg, #253345 0%, #1E2A3A 100%);
           border-color: #00A8FF;
           transform: translateY(-2px);
-          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+          box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
         }
 
         .chapter-item.dragging {
@@ -329,21 +332,22 @@ const ChapterManager: React.FC<ChapterManagerProps> = ({
         .chapter-info {
           flex: 1;
           display: flex;
-          gap: 16px;
+          gap: 14px;
           align-items: flex-start;
         }
 
         .chapter-index {
-          min-width: 30px;
-          height: 30px;
-          background-color: #00A8FF;
+          min-width: 28px;
+          height: 28px;
+          background: linear-gradient(135deg, #00A8FF 0%, #0088CC 100%);
           color: white;
-          border-radius: 50%;
+          border-radius: 6px;
           display: flex;
           align-items: center;
           justify-content: center;
           font-weight: 600;
-          font-size: 0.9rem;
+          font-size: 0.85rem;
+          box-shadow: 0 2px 8px rgba(0, 168, 255, 0.25);
         }
 
         .chapter-content {
@@ -352,17 +356,17 @@ const ChapterManager: React.FC<ChapterManagerProps> = ({
         }
 
         .chapter-content h4 {
-          margin: 0 0 8px 0;
-          color: #ECF0F1;
-          font-size: 1.1rem;
+          margin: 0 0 6px 0;
+          color: #F1F5F9;
+          font-size: 1rem;
           font-weight: 600;
         }
 
         .chapter-preview {
           margin: 0 0 8px 0;
-          color: #B0BEC5;
-          font-size: 0.9rem;
-          line-height: 1.4;
+          color: #94A3B8;
+          font-size: 0.88rem;
+          line-height: 1.5;
           overflow: hidden;
           text-overflow: ellipsis;
           display: -webkit-box;
@@ -373,8 +377,8 @@ const ChapterManager: React.FC<ChapterManagerProps> = ({
         .chapter-meta {
           display: flex;
           gap: 16px;
-          font-size: 0.8rem;
-          color: #7F8C8D;
+          font-size: 0.78rem;
+          color: #64748B;
         }
 
         .chapter-actions {
@@ -384,13 +388,14 @@ const ChapterManager: React.FC<ChapterManagerProps> = ({
         }
 
         .drag-handle {
-          color: #95A5A6;
+          color: #475569;
           cursor: grab;
           padding: 4px;
+          transition: color 0.2s;
         }
 
         .drag-handle:hover {
-          color: #BDC3C7;
+          color: #94A3B8;
         }
 
         .modal {
@@ -399,45 +404,49 @@ const ChapterManager: React.FC<ChapterManagerProps> = ({
           left: 0;
           width: 100%;
           height: 100%;
-          background-color: rgba(0, 0, 0, 0.5);
+          background-color: rgba(0, 0, 0, 0.6);
           display: flex;
           align-items: center;
           justify-content: center;
           z-index: 1000;
+          backdrop-filter: blur(4px);
         }
 
         .modal-content {
-          background-color: #2C3E50;
-          border-radius: 12px;
+          background: linear-gradient(145deg, #1E2A3A 0%, #1A2432 100%);
+          border-radius: 14px;
           width: 90%;
-          max-width: 500px;
-          max-height: 80vh;
+          max-width: 520px;
+          max-height: 85vh;
           overflow-y: auto;
+          border: 1px solid #2D3E54;
+          box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
         }
 
         .modal-header {
           display: flex;
           justify-content: space-between;
           align-items: center;
-          padding: 20px;
-          border-bottom: 1px solid #34495E;
+          padding: 18px 22px;
+          border-bottom: 1px solid #2D3E54;
         }
 
         .modal-header h2 {
           margin: 0;
-          color: #ECF0F1;
-          font-size: 1.3rem;
+          color: #E2E8F0;
+          font-size: 1.2rem;
+          font-weight: 600;
         }
 
         .modal-close {
           background: none;
           border: none;
-          color: #B0BEC5;
+          color: #94A3B8;
           cursor: pointer;
           padding: 0;
           width: 32px;
           height: 32px;
-          border-radius: 4px;
+          border-radius: 6px;
           display: flex;
           align-items: center;
           justify-content: center;
@@ -445,34 +454,36 @@ const ChapterManager: React.FC<ChapterManagerProps> = ({
         }
 
         .modal-close:hover {
-          background-color: #34495E;
-          color: #ECF0F1;
+          background-color: #334155;
+          color: #E2E8F0;
         }
 
         .modal-content form {
-          padding: 20px;
+          padding: 22px;
         }
 
         .form-group {
-          margin-bottom: 16px;
+          margin-bottom: 18px;
         }
 
         .form-group label {
           display: block;
           margin-bottom: 8px;
-          color: #B0BEC5;
+          color: #94A3B8;
           font-weight: 500;
+          font-size: 0.9rem;
         }
 
         .form-group input,
         .form-group textarea {
           width: 100%;
-          padding: 10px;
-          background-color: #1E272E;
-          border: 1px solid #34495E;
-          border-radius: 6px;
-          color: #ECF0F1;
-          font-size: 1rem;
+          padding: 11px 14px;
+          background-color: #151E2B;
+          border: 1px solid #334155;
+          border-radius: 8px;
+          color: #E2E8F0;
+          font-size: 0.95rem;
+          transition: all 0.2s ease;
         }
 
         .form-group input:focus,
@@ -483,7 +494,7 @@ const ChapterManager: React.FC<ChapterManagerProps> = ({
         }
 
         .form-group textarea {
-          min-height: 150px;
+          min-height: 140px;
           resize: vertical;
           font-family: inherit;
         }
@@ -492,50 +503,56 @@ const ChapterManager: React.FC<ChapterManagerProps> = ({
           display: flex;
           justify-content: flex-end;
           gap: 10px;
-          padding: 16px 20px;
-          border-top: 1px solid #34495E;
+          padding: 16px 22px;
+          border-top: 1px solid #2D3E54;
         }
 
         .btn-primary,
         .btn-secondary,
         .btn-danger {
-          padding: 8px 16px;
+          padding: 9px 16px;
           border: none;
-          border-radius: 4px;
+          border-radius: 8px;
           font-size: 0.9rem;
           font-weight: 500;
           cursor: pointer;
-          display: flex;
+          display: inline-flex;
           align-items: center;
           gap: 6px;
-          transition: all 0.2s;
+          transition: all 0.2s ease;
         }
 
         .btn-primary {
-          background-color: #00A8FF;
+          background: linear-gradient(135deg, #00A8FF 0%, #0088CC 100%);
           color: white;
+          box-shadow: 0 2px 8px rgba(0, 168, 255, 0.25);
         }
 
         .btn-primary:hover:not(:disabled) {
-          background-color: #0088CC;
+          transform: translateY(-1px);
+          box-shadow: 0 4px 12px rgba(0, 168, 255, 0.35);
         }
 
         .btn-secondary {
-          background-color: #95A5A6;
-          color: white;
+          background: #334155;
+          color: #E2E8F0;
+          border: 1px solid #475569;
         }
 
         .btn-secondary:hover:not(:disabled) {
-          background-color: #7F8C8D;
+          background: #475569;
+          border-color: #64748B;
         }
 
         .btn-danger {
-          background-color: #E74C3C;
+          background: linear-gradient(135deg, #EF4444 0%, #DC2626 100%);
           color: white;
+          box-shadow: 0 2px 8px rgba(239, 68, 68, 0.25);
         }
 
         .btn-danger:hover:not(:disabled) {
-          background-color: #C0392B;
+          transform: translateY(-1px);
+          box-shadow: 0 4px 12px rgba(239, 68, 68, 0.35);
         }
 
         .btn-primary:disabled,
@@ -543,6 +560,8 @@ const ChapterManager: React.FC<ChapterManagerProps> = ({
         .btn-danger:disabled {
           opacity: 0.5;
           cursor: not-allowed;
+          transform: none;
+          box-shadow: none;
         }
 
         @keyframes spin {
