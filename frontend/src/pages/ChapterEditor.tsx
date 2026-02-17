@@ -42,8 +42,6 @@ const ChapterEditor: React.FC = () => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [totalDuration, setTotalDuration] = useState(0);
-  const [showEditPanel, setShowEditPanel] = useState(false);
-  const [editingParagraph, setEditingParagraph] = useState<Paragraph | null>(null);
   const [editForm, setEditForm] = useState({
     content: '',
     speaker: '',
@@ -153,6 +151,11 @@ const ChapterEditor: React.FC = () => {
       // 模拟段落数据
       setParagraphs(mockParagraphs);
       calculateTotalDuration(mockParagraphs);
+
+      // 默认选中第一个段落
+      if (mockParagraphs.length > 0) {
+        handleSelectParagraph(mockParagraphs[0].id);
+      }
     } catch (error) {
       console.error('Failed to load data:', error);
     }
@@ -182,7 +185,6 @@ const ChapterEditor: React.FC = () => {
     setSelectedParagraphId(id);
     const paragraph = paragraphs.find((p) => p.id === id);
     if (paragraph) {
-      setEditingParagraph(paragraph);
       setEditForm({
         content: paragraph.content,
         speaker: paragraph.speaker || '',
@@ -190,22 +192,19 @@ const ChapterEditor: React.FC = () => {
         voiceId: paragraph.voiceId || '',
         speed: paragraph.speed || DefSpeed,
       });
-      setShowEditPanel(true);
     }
   };
 
   // 保存编辑
   const handleSaveEdit = () => {
-    if (!editingParagraph) return;
+    if (!selectedParagraphId) return;
 
     const updatedParagraphs = paragraphs.map((p) =>
-      p.id === editingParagraph.id
+      p.id === selectedParagraphId
         ? { ...p, ...editForm }
         : p
     );
     setParagraphs(updatedParagraphs);
-    setShowEditPanel(false);
-    setEditingParagraph(null);
   };
 
   // 删除段落
@@ -215,8 +214,11 @@ const ChapterEditor: React.FC = () => {
     setParagraphs(updatedParagraphs);
     calculateTotalDuration(updatedParagraphs);
     if (selectedParagraphId === id) {
-      setSelectedParagraphId(null);
-      setShowEditPanel(false);
+      if (updatedParagraphs.length > 0) {
+        handleSelectParagraph(updatedParagraphs[0].id);
+      } else {
+        setSelectedParagraphId(null);
+      }
     }
   };
 
@@ -254,6 +256,10 @@ const ChapterEditor: React.FC = () => {
     };
     return colors[speaker] || '#95A5A6';
   };
+
+  const selectedParagraph = selectedParagraphId
+    ? paragraphs.find((p) => p.id === selectedParagraphId)
+    : null;
 
   if (isLoading) {
     return (
@@ -313,127 +319,67 @@ const ChapterEditor: React.FC = () => {
         </div>
       </header>
 
-      {/* 主编辑区域 */}
+      {/* 主编辑区域 - 上下布局 */}
       <div className="editor-main">
-        {/* 左侧文本面板 */}
-        <div className="text-panel">
-          <div className="panel-header">
-            <h2>文本内容</h2>
-          </div>
-          <div className="text-content">
-            {paragraphs.map((paragraph, index) => (
-              <div
-                key={paragraph.id}
-                className={`text-paragraph ${
-                  selectedParagraphId === paragraph.id ? 'selected' : ''
-                }`}
-                onClick={() => handleSelectParagraph(paragraph.id)}
-              >
-                <div
-                  className="speaker-badge"
-                  style={{ backgroundColor: getSpeakerColor(paragraph.speaker) }}
-                >
-                  {paragraph.speaker || '旁白'}
-                </div>
-                <p className="paragraph-text">{paragraph.content}</p>
-                <div className="paragraph-meta">
-                  {paragraph.audioPath ? (
-                    <span className="has-audio">
-                      <Volume2 size={12} />
-                      已生成
-                    </span>
-                  ) : (
-                    <span className="no-audio">未生成</span>
-                  )}
-                  <span className="duration">
-                    <Clock size={12} />
-                    {(paragraph.duration || 0).toFixed(1)}s
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* 中间时间轴面板 */}
-        <div className="timeline-panel">
-          <div className="panel-header">
-            <div className="transport-controls">
-              <button
-                className={`play-btn ${isPlaying ? 'playing' : ''}`}
-                onClick={togglePlay}
-              >
-                {isPlaying ? <Pause size={20} /> : <Play size={20} />}
-              </button>
-              <div className="time-display">
-                {formatTime(currentTime)} / {formatTime(totalDuration)}
-              </div>
+        {/* 上半部分 - 段落列表和详情 */}
+        <div className="upper-section">
+          {/* 左侧段落列表 */}
+          <div className="paragraph-list-panel">
+            <div className="panel-header">
+              <h2>段落列表</h2>
+              <span className="paragraph-count">{paragraphs.length} 个段落</span>
             </div>
-          </div>
-
-          <div className="timeline-container" ref={timelineRef}>
-            <div className="timeline-ruler">
-              {Array.from({ length: Math.ceil(totalDuration) + 1 }).map((_, i) => (
-                <div key={i} className="ruler-mark" style={{ left: `${(i / totalDuration) * 100}%` }}>
-                  <span className="ruler-label">{i}s</span>
-                </div>
-              ))}
-            </div>
-
-            <div className="timeline-track">
-              {timelineSegments.map((segment) => (
+            <div className="paragraph-list-content">
+              {paragraphs.map((paragraph, index) => (
                 <div
-                  key={segment.id}
-                  className={`timeline-clip ${
-                    selectedParagraphId === segment.id ? 'selected' : ''
+                  key={paragraph.id}
+                  className={`paragraph-item ${
+                    selectedParagraphId === paragraph.id ? 'selected' : ''
                   }`}
-                  style={{
-                    left: `${(segment.start / totalDuration) * 100}%`,
-                    width: `${((segment.end - segment.start) / totalDuration) * 100}%`,
-                    backgroundColor: getSpeakerColor(segment.paragraph.speaker),
-                  }}
-                  onClick={() => handleSelectParagraph(segment.id)}
+                  onClick={() => handleSelectParagraph(paragraph.id)}
                 >
-                  <div className="clip-content">
-                    <div className="clip-speaker">
-                      <Mic size={14} />
-                      {segment.paragraph.speaker || '旁白'}
-                    </div>
-                    <div className="clip-text">
-                      {segment.paragraph.content.slice(0, 40)}
-                      {segment.paragraph.content.length > 40 ? '...' : ''}
-                    </div>
+                  <div className="paragraph-item-left">
+                    <div className="paragraph-index">{index + 1}</div>
+                    <div
+                      className="speaker-dot"
+                      style={{ backgroundColor: getSpeakerColor(paragraph.speaker) }}
+                    ></div>
                   </div>
-                  {segment.paragraph.audioPath && (
-                    <div className="clip-indicator">
-                      <Music size={12} />
+                  <div className="paragraph-item-content">
+                    <div className="paragraph-item-header">
+                      <span
+                        className="speaker-label"
+                        style={{ color: getSpeakerColor(paragraph.speaker) }}
+                      >
+                        {paragraph.speaker || '旁白'}
+                      </span>
+                      <span className="paragraph-duration">
+                        <Clock size={10} />
+                        {(paragraph.duration || 0).toFixed(1)}s
+                      </span>
                     </div>
-                  )}
+                    <p className="paragraph-item-text">
+                      {paragraph.content}
+                    </p>
+                  </div>
+                  <div className="paragraph-item-right">
+                    {paragraph.audioPath ? (
+                      <span className="has-audio-icon">
+                        <Volume2 size={14} />
+                      </span>
+                    ) : null}
+                  </div>
                 </div>
               ))}
             </div>
-
-            <div
-              className="playhead"
-              style={{ left: `${(currentTime / totalDuration) * 100}%` }}
-            />
           </div>
-        </div>
 
-        {/* 右侧属性面板 */}
-        <div className={`properties-panel ${showEditPanel ? 'open' : ''}`}>
-          {showEditPanel && editingParagraph ? (
-            <>
-              <div className="panel-header">
-                <h2>段落属性</h2>
-                <button
-                  className="close-btn"
-                  onClick={() => setShowEditPanel(false)}
-                >
-                  <X size={18} />
-                </button>
-              </div>
-
+          {/* 右侧段落详情 */}
+          <div className="paragraph-detail-panel">
+            <div className="panel-header">
+              <h2>段落详情</h2>
+            </div>
+            {selectedParagraph ? (
               <div className="panel-content">
                 <div className="form-group">
                   <label>文本内容</label>
@@ -442,93 +388,97 @@ const ChapterEditor: React.FC = () => {
                     onChange={(e) =>
                       setEditForm({ ...editForm, content: e.target.value })
                     }
-                    rows={4}
+                    rows={5}
                   />
                 </div>
 
-                <div className="form-group">
-                  <label>说话角色</label>
-                  <select
-                    value={editForm.speaker}
-                    onChange={(e) =>
-                      setEditForm({ ...editForm, speaker: e.target.value })
-                    }
-                  >
-                    <option value="">旁白</option>
-                    {characters.map((char) => (
-                      <option key={char.id} value={char.name}>
-                        {char.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="form-group">
-                  <label>音色</label>
-                  <select
-                    value={editForm.voiceId}
-                    onChange={(e) =>
-                      setEditForm({ ...editForm, voiceId: e.target.value })
-                    }
-                  >
-                    <option value="">请选择音色</option>
-                    {voices.map((voice) => (
-                      <option key={voice.id} value={voice.id}>
-                        {voice.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="form-group">
-                  <label>情感</label>
-                  <select
-                    value={editForm.tone}
-                    onChange={(e) =>
-                      setEditForm({ ...editForm, tone: e.target.value })
-                    }
-                  >
-                    {SupportedTones.map((tone) => (
-                      <option key={tone.value} value={tone.value}>
-                        {tone.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="form-group">
-                  <div className="label-row">
-                    <label>语速</label>
-                    <span className="value-badge">{editForm.speed.toFixed(2)}</span>
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>说话角色</label>
+                    <select
+                      value={editForm.speaker}
+                      onChange={(e) =>
+                        setEditForm({ ...editForm, speaker: e.target.value })
+                      }
+                    >
+                      <option value="">旁白</option>
+                      {characters.map((char) => (
+                        <option key={char.id} value={char.name}>
+                          {char.name}
+                        </option>
+                      ))}
+                    </select>
                   </div>
-                  <input
-                    type="range"
-                    min="0.5"
-                    max="2.0"
-                    step="0.05"
-                    value={editForm.speed}
-                    onChange={(e) =>
-                      setEditForm({ ...editForm, speed: parseFloat(e.target.value) })
-                    }
-                  />
-                  <div className="range-labels">
-                    <span>0.5x</span>
-                    <span>1.0x</span>
-                    <span>2.0x</span>
+
+                  <div className="form-group">
+                    <label>音色</label>
+                    <select
+                      value={editForm.voiceId}
+                      onChange={(e) =>
+                        setEditForm({ ...editForm, voiceId: e.target.value })
+                      }
+                    >
+                      <option value="">请选择音色</option>
+                      {voices.map((voice) => (
+                        <option key={voice.id} value={voice.id}>
+                          {voice.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>情感</label>
+                    <select
+                      value={editForm.tone}
+                      onChange={(e) =>
+                        setEditForm({ ...editForm, tone: e.target.value })
+                      }
+                    >
+                      {SupportedTones.map((tone) => (
+                        <option key={tone.value} value={tone.value}>
+                          {tone.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="form-group">
+                    <div className="label-row">
+                      <label>语速</label>
+                      <span className="value-badge">{editForm.speed.toFixed(2)}</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="0.5"
+                      max="2.0"
+                      step="0.05"
+                      value={editForm.speed}
+                      onChange={(e) =>
+                        setEditForm({ ...editForm, speed: parseFloat(e.target.value) })
+                      }
+                    />
+                    <div className="range-labels">
+                      <span>0.5x</span>
+                      <span>1.0x</span>
+                      <span>2.0x</span>
+                    </div>
                   </div>
                 </div>
 
                 <div className="action-buttons">
                   <button
                     className="btn-generate"
-                    onClick={() => handleGenerateAudio(editingParagraph.id)}
+                    onClick={() => handleGenerateAudio(selectedParagraph.id)}
                   >
                     <Zap size={16} />
                     生成音频
                   </button>
                   <button
                     className="btn-delete"
-                    onClick={() => handleDeleteParagraph(editingParagraph.id)}
+                    onClick={() => handleDeleteParagraph(selectedParagraph.id)}
                   >
                     <Trash2 size={16} />
                     删除
@@ -536,25 +486,86 @@ const ChapterEditor: React.FC = () => {
                 </div>
 
                 <div className="save-bar">
-                  <button
-                    className="btn-secondary"
-                    onClick={() => setShowEditPanel(false)}
-                  >
-                    取消
-                  </button>
                   <button className="btn-primary" onClick={handleSaveEdit}>
                     <Check size={16} />
-                    保存
+                    保存修改
                   </button>
                 </div>
               </div>
-            </>
-          ) : (
-            <div className="empty-properties">
-              <Settings size={40} />
-              <p>选择一个段落来编辑属性</p>
+            ) : (
+              <div className="empty-properties">
+                <Settings size={40} />
+                <p>选择一个段落来编辑属性</p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* 下半部分 - 音轨/时间轴 */}
+        <div className="lower-section">
+          <div className="timeline-panel">
+            <div className="panel-header">
+              <div className="transport-controls">
+                <button
+                  className={`play-btn ${isPlaying ? 'playing' : ''}`}
+                  onClick={togglePlay}
+                >
+                  {isPlaying ? <Pause size={20} /> : <Play size={20} />}
+                </button>
+                <div className="time-display">
+                  {formatTime(currentTime)} / {formatTime(totalDuration)}
+                </div>
+              </div>
             </div>
-          )}
+
+            <div className="timeline-container" ref={timelineRef}>
+              <div className="timeline-ruler">
+                {Array.from({ length: Math.ceil(totalDuration) + 1 }).map((_, i) => (
+                  <div key={i} className="ruler-mark" style={{ left: `${(i / totalDuration) * 100}%` }}>
+                    <span className="ruler-label">{i}s</span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="timeline-track">
+                {timelineSegments.map((segment) => (
+                  <div
+                    key={segment.id}
+                    className={`timeline-clip ${
+                      selectedParagraphId === segment.id ? 'selected' : ''
+                    }`}
+                    style={{
+                      left: `${(segment.start / totalDuration) * 100}%`,
+                      width: `${((segment.end - segment.start) / totalDuration) * 100}%`,
+                      backgroundColor: getSpeakerColor(segment.paragraph.speaker),
+                    }}
+                    onClick={() => handleSelectParagraph(segment.id)}
+                  >
+                    <div className="clip-content">
+                      <div className="clip-speaker">
+                        <Mic size={14} />
+                        {segment.paragraph.speaker || '旁白'}
+                      </div>
+                      <div className="clip-text">
+                        {segment.paragraph.content.slice(0, 40)}
+                        {segment.paragraph.content.length > 40 ? '...' : ''}
+                      </div>
+                    </div>
+                    {segment.paragraph.audioPath && (
+                      <div className="clip-indicator">
+                        <Music size={12} />
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              <div
+                className="playhead"
+                style={{ left: `${(currentTime / totalDuration) * 100}%` }}
+              />
+            </div>
+          </div>
         </div>
       </div>
 
@@ -565,12 +576,15 @@ const ChapterEditor: React.FC = () => {
           min-height: 100vh;
           display: flex;
           flex-direction: column;
+          padding-top: 73px;
         }
 
         /* 顶部导航栏 */
         .editor-header {
-          position: sticky;
+          position: fixed;
           top: 0;
+          left: 0;
+          right: 0;
           z-index: 100;
           background: linear-gradient(135deg, #1A1F26 0%, #141920 100%);
           border-bottom: 1px solid #2A3442;
@@ -639,105 +653,357 @@ const ChapterEditor: React.FC = () => {
           align-items: center;
         }
 
-        /* 主编辑区域 */
+        /* 主编辑区域 - 上下布局 */
         .editor-main {
           flex: 1;
           display: flex;
-          height: calc(100vh - 64px);
+          flex-direction: column;
+          height: 100vh;
           overflow: hidden;
+        }
+
+        /* 上半部分 */
+        .upper-section {
+          flex: 1;
+          display: flex;
+          min-height: 0;
+          border-bottom: 1px solid #2A3442;
+        }
+
+        /* 下半部分 */
+        .lower-section {
+          height: 280px;
+          flex-shrink: 0;
+          display: flex;
+          flex-direction: column;
         }
 
         /* 面板通用 */
         .panel-header {
-          padding: 14px 16px;
+          padding: 12px 16px;
           background: linear-gradient(135deg, #1A1F26 0%, #141920 100%);
           border-bottom: 1px solid #2A3442;
           display: flex;
           justify-content: space-between;
           align-items: center;
+          flex-shrink: 0;
         }
 
         .panel-header h2 {
           margin: 0;
-          font-size: 0.95rem;
+          font-size: 0.9rem;
           font-weight: 600;
           color: #CBD5E1;
         }
 
-        /* 左侧文本面板 */
-        .text-panel {
-          width: 380px;
+        /* 左侧段落列表面板 */
+        .paragraph-list-panel {
+          width: 40%;
+          min-width: 320px;
           background-color: #141920;
           border-right: 1px solid #2A3442;
           display: flex;
           flex-direction: column;
         }
 
-        .text-content {
-          flex: 1;
-          overflow-y: auto;
-          padding: 12px;
+        .paragraph-count {
+          font-size: 0.8rem;
+          color: #64748B;
         }
 
-        .text-paragraph {
+        .paragraph-list-content {
+          flex: 1;
+          overflow-y: auto;
+          padding: 8px;
+        }
+
+        .paragraph-item {
+          display: flex;
+          align-items: flex-start;
+          gap: 10px;
           background: linear-gradient(145deg, #1E2530 0%, #1A212B 100%);
           border: 1px solid #2A3442;
           border-radius: 10px;
-          padding: 12px;
-          margin-bottom: 10px;
+          padding: 10px 12px;
+          margin-bottom: 8px;
           cursor: pointer;
           transition: all 0.2s ease;
         }
 
-        .text-paragraph:hover {
+        .paragraph-item:hover {
           border-color: #3A4A5C;
           transform: translateY(-1px);
         }
 
-        .text-paragraph.selected {
+        .paragraph-item.selected {
           border-color: #00A8FF;
           box-shadow: 0 0 0 2px rgba(0, 168, 255, 0.2);
+          background: linear-gradient(145deg, #1A2733 0%, #16222C 100%);
         }
 
-        .speaker-badge {
-          display: inline-flex;
+        .paragraph-item-left {
+          display: flex;
+          flex-direction: column;
           align-items: center;
-          padding: 3px 10px;
+          gap: 6px;
+          flex-shrink: 0;
+          padding-top: 2px;
+        }
+
+        .paragraph-index {
+          width: 22px;
+          height: 22px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: #2A3442;
           border-radius: 4px;
           font-size: 0.75rem;
           font-weight: 600;
-          color: white;
-          margin-bottom: 8px;
+          color: #94A3B8;
         }
 
-        .paragraph-text {
-          margin: 0 0 8px;
-          color: #E2E8F0;
-          font-size: 0.92rem;
-          line-height: 1.6;
+        .speaker-dot {
+          width: 8px;
+          height: 8px;
+          border-radius: 50%;
         }
 
-        .paragraph-meta {
+        .paragraph-item-content {
+          flex: 1;
+          min-width: 0;
+        }
+
+        .paragraph-item-header {
           display: flex;
-          gap: 12px;
-          font-size: 0.78rem;
+          align-items: center;
+          gap: 10px;
+          margin-bottom: 4px;
+        }
+
+        .speaker-label {
+          font-size: 0.8rem;
+          font-weight: 600;
+        }
+
+        .paragraph-duration {
+          display: flex;
+          align-items: center;
+          gap: 3px;
+          font-size: 0.75rem;
           color: #64748B;
         }
 
-        .has-audio {
+        .paragraph-item-text {
+          margin: 0;
+          color: #E2E8F0;
+          font-size: 0.88rem;
+          line-height: 1.5;
+          display: -webkit-box;
+          -webkit-line-clamp: 2;
+          -webkit-box-orient: vertical;
+          overflow: hidden;
+        }
+
+        .paragraph-item-right {
+          flex-shrink: 0;
+          display: flex;
+          align-items: center;
+        }
+
+        .has-audio-icon {
           color: #4ECDC4;
           display: flex;
           align-items: center;
-          gap: 4px;
         }
 
-        .duration {
+        /* 右侧段落详情面板 */
+        .paragraph-detail-panel {
+          flex: 1;
+          background-color: #141920;
+          display: flex;
+          flex-direction: column;
+        }
+
+        .panel-content {
+          flex: 1;
+          overflow-y: auto;
+          padding: 16px;
+        }
+
+        .form-row {
+          display: flex;
+          gap: 16px;
+        }
+
+        .form-row .form-group {
+          flex: 1;
+        }
+
+        .empty-properties {
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          color: #64748B;
+          gap: 12px;
+        }
+
+        .empty-properties p {
+          margin: 0;
+        }
+
+        .form-group {
+          margin-bottom: 16px;
+        }
+
+        .form-group label {
+          display: block;
+          margin-bottom: 6px;
+          color: #94A3B8;
+          font-weight: 500;
+          font-size: 0.82rem;
+        }
+
+        .form-group input,
+        .form-group textarea,
+        .form-group select {
+          width: 100%;
+          padding: 10px 12px;
+          background-color: #0F1419;
+          border: 1px solid #2A3442;
+          border-radius: 8px;
+          color: #E2E8F0;
+          font-size: 0.88rem;
+          transition: all 0.2s ease;
+          box-sizing: border-box;
+        }
+
+        .form-group input:focus,
+        .form-group textarea:focus,
+        .form-group select:focus {
+          outline: none;
+          border-color: #00A8FF;
+          box-shadow: 0 0 0 3px rgba(0, 168, 255, 0.1);
+        }
+
+        .form-group textarea {
+          min-height: 100px;
+          resize: vertical;
+          font-family: inherit;
+        }
+
+        .label-row {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 6px;
+        }
+
+        .value-badge {
+          padding: 2px 8px;
+          background-color: rgba(0, 168, 255, 0.15);
+          color: #00A8FF;
+          border-radius: 4px;
+          font-size: 0.78rem;
+          font-weight: 600;
+        }
+
+        .form-group input[type="range"] {
+          width: 100%;
+          padding: 0;
+          background: transparent;
+          border: none;
+          cursor: pointer;
+        }
+
+        .form-group input[type="range"]::-webkit-slider-track {
+          height: 6px;
+          background: #2A3442;
+          border-radius: 3px;
+        }
+
+        .form-group input[type="range"]::-webkit-slider-thumb {
+          -webkit-appearance: none;
+          width: 16px;
+          height: 16px;
+          background: linear-gradient(135deg, #00A8FF 0%, #0088CC 100%);
+          border-radius: 50%;
+          cursor: pointer;
+          margin-top: -5px;
+          box-shadow: 0 2px 8px rgba(0, 168, 255, 0.3);
+        }
+
+        .range-labels {
+          display: flex;
+          justify-content: space-between;
+          font-size: 0.75rem;
+          color: #64748B;
+          margin-top: 4px;
+        }
+
+        .action-buttons {
+          display: flex;
+          gap: 10px;
+          margin-bottom: 14px;
+          padding-top: 8px;
+          border-top: 1px solid #2A3442;
+        }
+
+        .btn-generate {
+          flex: 1;
+          padding: 10px 16px;
+          background: linear-gradient(135deg, #10B981 0%, #059669 100%);
+          color: white;
+          border: none;
+          border-radius: 8px;
+          font-size: 0.88rem;
+          font-weight: 500;
+          cursor: pointer;
           display: flex;
           align-items: center;
-          gap: 4px;
+          justify-content: center;
+          gap: 6px;
+          transition: all 0.2s ease;
         }
 
-        /* 中间时间轴面板 */
+        .btn-generate:hover {
+          transform: translateY(-1px);
+          box-shadow: 0 4px 12px rgba(16, 185, 129, 0.35);
+        }
+
+        .btn-delete {
+          padding: 10px 14px;
+          background: rgba(239, 68, 68, 0.15);
+          color: #EF4444;
+          border: 1px solid rgba(239, 68, 68, 0.3);
+          border-radius: 8px;
+          font-size: 0.88rem;
+          font-weight: 500;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          transition: all 0.2s ease;
+        }
+
+        .btn-delete:hover {
+          background: rgba(239, 68, 68, 0.25);
+        }
+
+        .save-bar {
+          display: flex;
+          gap: 10px;
+          padding-top: 14px;
+          border-top: 1px solid #2A3442;
+        }
+
+        .save-bar .btn-primary {
+          flex: 1;
+        }
+
+        /* 时间轴面板 */
         .timeline-panel {
           flex: 1;
           display: flex;
@@ -752,8 +1018,8 @@ const ChapterEditor: React.FC = () => {
         }
 
         .play-btn {
-          width: 40px;
-          height: 40px;
+          width: 36px;
+          height: 36px;
           border-radius: 50%;
           background: linear-gradient(135deg, #00A8FF 0%, #0088CC 100%);
           border: none;
@@ -778,7 +1044,7 @@ const ChapterEditor: React.FC = () => {
 
         .time-display {
           font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
-          font-size: 0.95rem;
+          font-size: 0.88rem;
           color: #00A8FF;
           background-color: rgba(0, 168, 255, 0.1);
           padding: 4px 10px;
@@ -790,13 +1056,13 @@ const ChapterEditor: React.FC = () => {
           position: relative;
           overflow-x: auto;
           overflow-y: hidden;
-          padding: 20px;
+          padding: 16px 20px;
         }
 
         .timeline-ruler {
           position: relative;
-          height: 28px;
-          margin-bottom: 8px;
+          height: 24px;
+          margin-bottom: 6px;
           border-bottom: 1px solid #2A3442;
         }
 
@@ -809,13 +1075,13 @@ const ChapterEditor: React.FC = () => {
         }
 
         .ruler-label {
-          font-size: 0.72rem;
+          font-size: 0.7rem;
           color: #64748B;
         }
 
         .timeline-track {
           position: relative;
-          height: 200px;
+          height: 160px;
           background: linear-gradient(180deg, #141920 0%, #11161C 100%);
           border-radius: 10px;
           border: 1px solid #2A3442;
@@ -824,8 +1090,8 @@ const ChapterEditor: React.FC = () => {
 
         .timeline-clip {
           position: absolute;
-          top: 20px;
-          height: calc(100% - 40px);
+          top: 16px;
+          height: calc(100% - 32px);
           border-radius: 6px;
           cursor: pointer;
           transition: all 0.2s ease;
@@ -858,14 +1124,14 @@ const ChapterEditor: React.FC = () => {
           display: flex;
           align-items: center;
           gap: 4px;
-          font-size: 0.75rem;
+          font-size: 0.73rem;
           font-weight: 600;
           color: white;
-          margin-bottom: 4px;
+          margin-bottom: 3px;
         }
 
         .clip-text {
-          font-size: 0.8rem;
+          font-size: 0.78rem;
           color: rgba(255, 255, 255, 0.95);
           white-space: nowrap;
           overflow: hidden;
@@ -874,7 +1140,7 @@ const ChapterEditor: React.FC = () => {
 
         .clip-indicator {
           position: absolute;
-          top: 6px;
+          top: 5px;
           right: 6px;
           color: white;
         }
@@ -900,217 +1166,13 @@ const ChapterEditor: React.FC = () => {
           border-radius: 50%;
         }
 
-        /* 右侧属性面板 */
-        .properties-panel {
-          width: 320px;
-          background-color: #141920;
-          border-left: 1px solid #2A3442;
-          display: flex;
-          flex-direction: column;
-          transition: transform 0.3s ease;
-        }
-
-        .properties-panel:not(.open) {
-          width: 0;
-          border-left: none;
-          overflow: hidden;
-        }
-
-        .properties-panel .close-btn {
-          background: none;
-          border: none;
-          color: #94A3B8;
-          cursor: pointer;
-          padding: 4px;
-          border-radius: 4px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          transition: all 0.2s;
-        }
-
-        .properties-panel .close-btn:hover {
-          background: rgba(255, 255, 255, 0.08);
-          color: #E2E8F0;
-        }
-
-        .panel-content {
-          flex: 1;
-          overflow-y: auto;
-          padding: 16px;
-        }
-
-        .empty-properties {
-          flex: 1;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          color: #64748B;
-          gap: 12px;
-        }
-
-        .empty-properties p {
-          margin: 0;
-        }
-
-        .form-group {
-          margin-bottom: 18px;
-        }
-
-        .form-group label {
-          display: block;
-          margin-bottom: 8px;
-          color: #94A3B8;
-          font-weight: 500;
-          font-size: 0.85rem;
-        }
-
-        .form-group input,
-        .form-group textarea,
-        .form-group select {
-          width: 100%;
-          padding: 10px 12px;
-          background-color: #0F1419;
-          border: 1px solid #2A3442;
-          border-radius: 8px;
-          color: #E2E8F0;
-          font-size: 0.9rem;
-          transition: all 0.2s ease;
-          box-sizing: border-box;
-        }
-
-        .form-group input:focus,
-        .form-group textarea:focus,
-        .form-group select:focus {
-          outline: none;
-          border-color: #00A8FF;
-          box-shadow: 0 0 0 3px rgba(0, 168, 255, 0.1);
-        }
-
-        .form-group textarea {
-          min-height: 80px;
-          resize: vertical;
-          font-family: inherit;
-        }
-
-        .label-row {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          margin-bottom: 8px;
-        }
-
-        .value-badge {
-          padding: 2px 8px;
-          background-color: rgba(0, 168, 255, 0.15);
-          color: #00A8FF;
-          border-radius: 4px;
-          font-size: 0.8rem;
-          font-weight: 600;
-        }
-
-        .form-group input[type="range"] {
-          width: 100%;
-          padding: 0;
-          background: transparent;
-          border: none;
-          cursor: pointer;
-        }
-
-        .form-group input[type="range"]::-webkit-slider-track {
-          height: 6px;
-          background: #2A3442;
-          border-radius: 3px;
-        }
-
-        .form-group input[type="range"]::-webkit-slider-thumb {
-          -webkit-appearance: none;
-          width: 18px;
-          height: 18px;
-          background: linear-gradient(135deg, #00A8FF 0%, #0088CC 100%);
-          border-radius: 50%;
-          cursor: pointer;
-          margin-top: -6px;
-          box-shadow: 0 2px 8px rgba(0, 168, 255, 0.3);
-        }
-
-        .range-labels {
-          display: flex;
-          justify-content: space-between;
-          font-size: 0.78rem;
-          color: #64748B;
-          margin-top: 4px;
-        }
-
-        .action-buttons {
-          display: flex;
-          gap: 10px;
-          margin-bottom: 16px;
-          padding-top: 8px;
-          border-top: 1px solid #2A3442;
-        }
-
-        .btn-generate {
-          flex: 1;
-          padding: 10px 16px;
-          background: linear-gradient(135deg, #10B981 0%, #059669 100%);
-          color: white;
-          border: none;
-          border-radius: 8px;
-          font-size: 0.9rem;
-          font-weight: 500;
-          cursor: pointer;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 6px;
-          transition: all 0.2s ease;
-        }
-
-        .btn-generate:hover {
-          transform: translateY(-1px);
-          box-shadow: 0 4px 12px rgba(16, 185, 129, 0.35);
-        }
-
-        .btn-delete {
-          padding: 10px 14px;
-          background: rgba(239, 68, 68, 0.15);
-          color: #EF4444;
-          border: 1px solid rgba(239, 68, 68, 0.3);
-          border-radius: 8px;
-          font-size: 0.9rem;
-          font-weight: 500;
-          cursor: pointer;
-          display: flex;
-          align-items: center;
-          gap: 6px;
-          transition: all 0.2s ease;
-        }
-
-        .btn-delete:hover {
-          background: rgba(239, 68, 68, 0.25);
-        }
-
-        .save-bar {
-          display: flex;
-          gap: 10px;
-          padding-top: 16px;
-          border-top: 1px solid #2A3442;
-        }
-
-        .save-bar .btn-primary,
-        .save-bar .btn-secondary {
-          flex: 1;
-        }
-
         /* 按钮样式 */
         .btn-primary,
         .btn-secondary {
           padding: 9px 16px;
           border: none;
           border-radius: 8px;
-          font-size: 0.9rem;
+          font-size: 0.88rem;
           font-weight: 500;
           cursor: pointer;
           display: inline-flex;

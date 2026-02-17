@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, FolderOpen, Trash2, Edit2, ChevronRight } from 'lucide-react';
+import { Plus, FolderOpen, Trash2, ExternalLink, BookOpen } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import api from '../utils/api';
 import { Project } from '../types';
@@ -66,23 +66,24 @@ const HomePage: React.FC = () => {
   return (
     <div className="home-page">
       <div className="page-header">
-        <h1>听墨语 - 有声小说制作</h1>
-        <p>创建、编辑和管理您的有声小说工程</p>
+        <div className="header-content">
+          <BookOpen size={28} className="header-icon" />
+          <div>
+            <h1>听墨语 - 有声小说制作</h1>
+            <p>创建、编辑和管理您的有声小说工程</p>
+          </div>
+        </div>
+        <button
+          className="create-project-btn"
+          onClick={() => setShowCreateModal(true)}
+          disabled={isLoading}
+        >
+          <Plus size={20} />
+          创建新工程
+        </button>
       </div>
 
       <div className="projects-container">
-        {/* 创建工程按钮 */}
-        <div className="create-project-section">
-          <button
-            className="create-project-btn"
-            onClick={() => setShowCreateModal(true)}
-            disabled={isLoading}
-          >
-            <Plus size={20} />
-            创建新工程
-          </button>
-        </div>
-
         {/* 工程列表 */}
         <div className="projects-list">
           {isLoading && projects.length === 0 ? (
@@ -97,22 +98,20 @@ const HomePage: React.FC = () => {
               <p>点击上方按钮创建您的第一个有声小说工程</p>
             </div>
           ) : (
-            projects.map((project) => (
+            projects.map((project, index) => (
               <div
                 key={project.id}
-                className="project-card"
-                onClick={() => handleProjectClick(project.id)}
+                className="project-item"
               >
-                <div className="project-info">
-                  <h3>{project.name}</h3>
-                  <p className="project-description">{project.description}</p>
-                  <div className="project-meta">
-                    <span className="created-at">
-                      创建于: {new Date(project.createdAt).toLocaleDateString()}
-                    </span>
-                    <span className="updated-at">
-                      更新于: {new Date(project.updatedAt).toLocaleDateString()}
-                    </span>
+                <div className="project-info" onClick={() => handleProjectClick(project.id)}>
+                  <div className="project-index">{index + 1}</div>
+                  <div className="project-content">
+                    <h3>{project.name}</h3>
+                    <p className="project-description">{project.description || '暂无描述'}</p>
+                    <div className="project-meta">
+                      <span>创建时间: {new Date(project.createdAt).toLocaleDateString()}</span>
+                      <span>更新时间: {new Date(project.updatedAt).toLocaleDateString()}</span>
+                    </div>
                   </div>
                 </div>
                 <div className="project-actions">
@@ -120,12 +119,13 @@ const HomePage: React.FC = () => {
                     className="btn-primary"
                     onClick={(e) => {
                       e.stopPropagation();
-                      console.log('Edit project:', project.id);
+                      handleProjectClick(project.id);
                     }}
                     disabled={isLoading}
+                    title="打开项目"
                   >
-                    <Edit2 size={16} />
-                    编辑
+                    <ExternalLink size={16} />
+                    打开
                   </button>
                   <button
                     className="btn-danger"
@@ -139,7 +139,6 @@ const HomePage: React.FC = () => {
                     删除
                   </button>
                 </div>
-                <ChevronRight size={24} className="arrow-right" />
               </div>
             ))
           )}
@@ -206,54 +205,74 @@ const HomePage: React.FC = () => {
       <style>{`
         .home-page {
           min-height: 100vh;
-          background-color: #1b2636;
-          color: #ffffff;
-          padding: 20px;
+          background-color: #151E2B;
+          color: #ECF0F1;
+          padding: 0;
+          display: flex;
+          flex-direction: column;
         }
 
         .page-header {
-          text-align: center;
-          margin-bottom: 40px;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 20px 24px;
+          background: linear-gradient(135deg, #1E2A3A 0%, #1A2432 100%);
+          border-bottom: 1px solid #2D3E54;
+        }
+
+        .header-content {
+          display: flex;
+          align-items: center;
+          gap: 14px;
+        }
+
+        .header-icon {
+          color: #00A8FF;
+          flex-shrink: 0;
         }
 
         .page-header h1 {
-          font-size: 2.5rem;
-          margin-bottom: 10px;
-          color: #00a8ff;
+          margin: 0 0 4px 0;
+          font-size: 1.4rem;
+          color: #F1F5F9;
+          font-weight: 700;
         }
 
         .page-header p {
-          color: #b0bec5;
-          font-size: 1.1rem;
+          margin: 0;
+          color: #94A3B8;
+          font-size: 0.9rem;
         }
 
         .projects-container {
+          flex: 1;
           max-width: 1200px;
           margin: 0 auto;
-        }
-
-        .create-project-section {
-          margin-bottom: 30px;
-          text-align: center;
+          width: 100%;
+          padding: 20px 24px;
         }
 
         .create-project-btn {
-          background-color: #00a8ff;
+          background: linear-gradient(135deg, #00A8FF 0%, #0088CC 100%);
           color: white;
           border: none;
-          padding: 12px 24px;
-          border-radius: 6px;
-          font-size: 1rem;
+          padding: 10px 20px;
+          border-radius: 10px;
+          font-size: 0.95rem;
+          font-weight: 600;
           cursor: pointer;
           display: flex;
           align-items: center;
           gap: 8px;
-          margin: 0 auto;
-          transition: background-color 0.3s;
+          transition: all 0.2s ease;
+          box-shadow: 0 4px 12px rgba(0, 168, 255, 0.3);
+          flex-shrink: 0;
         }
 
         .create-project-btn:hover:not(:disabled) {
-          background-color: #0088cc;
+          transform: translateY(-2px);
+          box-shadow: 0 6px 16px rgba(0, 168, 255, 0.4);
         }
 
         .create-project-btn:disabled {
@@ -262,133 +281,167 @@ const HomePage: React.FC = () => {
         }
 
         .projects-list {
-          display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-          gap: 20px;
+          flex: 1;
+          overflow-y: auto;
         }
 
-        .project-card {
-          background-color: #2c3e50;
-          border-radius: 8px;
-          padding: 20px;
+        .project-item {
+          background: linear-gradient(145deg, #1E2A3A 0%, #1A2432 100%);
+          border-radius: 10px;
+          padding: 16px 18px;
+          margin-bottom: 12px;
           display: flex;
-          flex-direction: column;
-          gap: 15px;
-          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-          transition: transform 0.3s, box-shadow 0.3s;
+          justify-content: space-between;
+          align-items: center;
+          gap: 16px;
           cursor: pointer;
-          position: relative;
+          transition: all 0.2s ease;
+          border: 1px solid #2D3E54;
         }
 
-        .project-card:hover {
+        .project-item:hover {
+          background: linear-gradient(145deg, #253345 0%, #1E2A3A 100%);
+          border-color: #00A8FF;
           transform: translateY(-2px);
-          box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+          box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
         }
 
-        .arrow-right {
-          position: absolute;
-          top: 20px;
-          right: 20px;
-          color: #7f8c8d;
-          transition: color 0.3s;
+        .project-info {
+          flex: 1;
+          display: flex;
+          gap: 14px;
+          align-items: flex-start;
         }
 
-        .project-card:hover .arrow-right {
-          color: #00a8ff;
+        .project-index {
+          min-width: 28px;
+          height: 28px;
+          background: linear-gradient(135deg, #00A8FF 0%, #0088CC 100%);
+          color: white;
+          border-radius: 6px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-weight: 600;
+          font-size: 0.85rem;
+          box-shadow: 0 2px 8px rgba(0, 168, 255, 0.25);
+          flex-shrink: 0;
         }
 
-        .project-card:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+        .project-content {
+          flex: 1;
+          min-width: 0;
         }
 
-        .project-info h3 {
-          margin: 0;
-          color: #00a8ff;
-          font-size: 1.2rem;
+        .project-content h3 {
+          margin: 0 0 6px 0;
+          color: #F1F5F9;
+          font-size: 1rem;
+          font-weight: 600;
         }
 
         .project-description {
-          color: #b0bec5;
-          margin: 8px 0;
-          line-height: 1.4;
+          margin: 0 0 8px 0;
+          color: #94A3B8;
+          font-size: 0.88rem;
+          line-height: 1.5;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          display: -webkit-box;
+          -webkit-line-clamp: 2;
+          -webkit-box-orient: vertical;
         }
 
         .project-meta {
           display: flex;
-          flex-direction: column;
-          gap: 4px;
-          font-size: 0.85rem;
-          color: #78909c;
+          gap: 16px;
+          font-size: 0.78rem;
+          color: #64748B;
         }
 
         .project-actions {
           display: flex;
-          gap: 10px;
-          margin-top: auto;
+          gap: 8px;
+          align-items: center;
+          flex-shrink: 0;
         }
 
         .btn-primary,
         .btn-secondary,
         .btn-danger {
-          padding: 8px 16px;
+          padding: 9px 16px;
           border: none;
-          border-radius: 4px;
+          border-radius: 8px;
+          font-size: 0.9rem;
+          font-weight: 500;
           cursor: pointer;
-          display: flex;
+          display: inline-flex;
           align-items: center;
           gap: 6px;
-          font-size: 0.9rem;
-          transition: background-color 0.3s;
+          transition: all 0.2s ease;
+          white-space: nowrap;
         }
 
         .btn-primary {
-          background-color: #00a8ff;
+          background: linear-gradient(135deg, #00A8FF 0%, #0088CC 100%);
           color: white;
+          box-shadow: 0 2px 8px rgba(0, 168, 255, 0.25);
         }
 
         .btn-primary:hover:not(:disabled) {
-          background-color: #0088cc;
+          transform: translateY(-1px);
+          box-shadow: 0 4px 12px rgba(0, 168, 255, 0.35);
         }
 
         .btn-secondary {
-          background-color: #546e7a;
-          color: white;
+          background: #334155;
+          color: #E2E8F0;
+          border: 1px solid #475569;
         }
 
         .btn-secondary:hover:not(:disabled) {
-          background-color: #455a64;
+          background: #475569;
+          border-color: #64748B;
         }
 
         .btn-danger {
-          background-color: #ff6b6b;
+          background: linear-gradient(135deg, #EF4444 0%, #DC2626 100%);
           color: white;
+          box-shadow: 0 2px 8px rgba(239, 68, 68, 0.25);
         }
 
         .btn-danger:hover:not(:disabled) {
-          background-color: #ee5253;
+          transform: translateY(-1px);
+          box-shadow: 0 4px 12px rgba(239, 68, 68, 0.35);
         }
 
         .btn-primary:disabled,
         .btn-secondary:disabled,
         .btn-danger:disabled {
-          opacity: 0.6;
+          opacity: 0.5;
           cursor: not-allowed;
+          transform: none;
+          box-shadow: none;
         }
 
         .loading {
           text-align: center;
-          padding: 40px;
+          padding: 60px;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          color: #64748B;
         }
 
         .spinner {
-          width: 40px;
-          height: 40px;
-          border: 4px solid #f3f3f3;
-          border-top: 4px solid #00a8ff;
+          width: 32px;
+          height: 32px;
+          border: 3px solid #334155;
+          border-top: 3px solid #00A8FF;
           border-radius: 50%;
           animation: spin 1s linear infinite;
-          margin: 0 auto 20px;
+          margin-bottom: 16px;
         }
 
         @keyframes spin {
@@ -399,12 +452,20 @@ const HomePage: React.FC = () => {
         .empty-state {
           text-align: center;
           padding: 60px 20px;
-          color: #b0bec5;
+          color: #64748B;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
         }
 
         .empty-state h2 {
-          color: #ffffff;
-          margin: 20px 0 10px;
+          color: #E2E8F0;
+          margin: 20px 0 8px;
+          font-size: 1.1rem;
+        }
+
+        .empty-state p {
+          margin: 0;
         }
 
         .modal {
@@ -413,95 +474,110 @@ const HomePage: React.FC = () => {
           left: 0;
           width: 100%;
           height: 100%;
-          background-color: rgba(0, 0, 0, 0.5);
+          background-color: rgba(0, 0, 0, 0.6);
           display: flex;
           align-items: center;
           justify-content: center;
           z-index: 1000;
+          backdrop-filter: blur(4px);
         }
 
         .modal-content {
-          background-color: #2c3e50;
-          border-radius: 8px;
+          background: linear-gradient(145deg, #1E2A3A 0%, #1A2432 100%);
+          border-radius: 14px;
           width: 90%;
-          max-width: 500px;
-          max-height: 80vh;
+          max-width: 520px;
+          max-height: 85vh;
           overflow-y: auto;
+          border: 1px solid #2D3E54;
+          box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
         }
 
         .modal-header {
           display: flex;
           justify-content: space-between;
           align-items: center;
-          padding: 20px;
-          border-bottom: 1px solid #34495e;
+          padding: 18px 22px;
+          border-bottom: 1px solid #2D3E54;
         }
 
         .modal-header h2 {
           margin: 0;
-          color: #00a8ff;
+          color: #E2E8F0;
+          font-size: 1.2rem;
+          font-weight: 600;
         }
 
         .modal-close {
           background: none;
           border: none;
-          color: #b0bec5;
-          font-size: 24px;
+          color: #94A3B8;
           cursor: pointer;
           padding: 0;
           width: 32px;
           height: 32px;
+          border-radius: 6px;
           display: flex;
           align-items: center;
           justify-content: center;
-          border-radius: 4px;
-          transition: background-color 0.3s;
+          transition: all 0.2s;
+          font-size: 28px;
+          line-height: 1;
         }
 
         .modal-close:hover {
-          background-color: #34495e;
-          color: #ffffff;
+          background-color: #334155;
+          color: #E2E8F0;
         }
 
         .modal-content form {
-          padding: 20px;
+          padding: 22px;
         }
 
         .form-group {
-          margin-bottom: 15px;
+          margin-bottom: 18px;
         }
 
         .form-group label {
           display: block;
-          margin-bottom: 5px;
-          color: #b0bec5;
+          margin-bottom: 8px;
+          color: #94A3B8;
           font-weight: 500;
+          font-size: 0.9rem;
         }
 
         .form-group input,
         .form-group textarea {
           width: 100%;
-          padding: 10px;
-          border: 1px solid #34495e;
-          border-radius: 4px;
-          background-color: #1e272e;
-          color: #ffffff;
-          font-size: 1rem;
+          padding: 11px 14px;
+          background-color: #151E2B;
+          border: 1px solid #334155;
+          border-radius: 8px;
+          color: #E2E8F0;
+          font-size: 0.95rem;
+          transition: all 0.2s ease;
+          box-sizing: border-box;
         }
 
         .form-group input:focus,
         .form-group textarea:focus {
           outline: none;
-          border-color: #00a8ff;
+          border-color: #00A8FF;
           box-shadow: 0 0 0 3px rgba(0, 168, 255, 0.1);
+        }
+
+        .form-group textarea {
+          min-height: 100px;
+          resize: vertical;
+          font-family: inherit;
         }
 
         .modal-footer {
           display: flex;
           justify-content: flex-end;
           gap: 10px;
-          padding: 15px 20px;
-          border-top: 1px solid #34495e;
+          padding: 16px 22px;
+          border-top: 1px solid #2D3E54;
         }
       `}</style>
     </div>

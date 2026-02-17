@@ -1,0 +1,261 @@
+# 听墨语 - 音色配置文件
+# 火山引擎语音合成音色列表
+# API 文档: https://www.volcengine.com/docs/6561/1257544
+
+voices:
+  # 通用音色 - 女声
+  - id: zh_female_qingxin
+    name: 清新女声
+    description: 温柔清新的女声，适合朗读散文、小说
+    language: zh-CN
+    gender: female
+    category: general
+    supported_tones:
+      - neutral
+      - happy
+      - sad
+
+  - id: zh_female_tianmei
+    name: 甜美女声
+    description: 甜美可爱的女声，适合童话故事
+    language: zh-CN
+    gender: female
+    category: general
+    supported_tones:
+      - neutral
+      - happy
+      - excited
+
+  - id: zh_female_chenwen
+    name: 沉稳女声
+    description: 成熟稳重的女声，适合新闻、有声读物
+    language: zh-CN
+    gender: female
+    category: general
+    supported_tones:
+      - neutral
+      - sad
+
+  - id: zh_female_nuanxin
+    name: 暖心女声
+    description: 温暖治愈的女声，适合睡前故事
+    language: zh-CN
+    gender: female
+    category: general
+    supported_tones:
+      - neutral
+      - happy
+
+  # 通用音色 - 男声
+  - id: zh_male_chunhou
+    name: 醇厚男声
+    description: 浑厚磁性的男声，适合纪录片、有声书
+    language: zh-CN
+    gender: male
+    category: general
+    supported_tones:
+      - neutral
+      - angry
+      - sad
+
+  - id: zh_male_yangguang
+    name: 阳光男声
+    description: 阳光活力的男声，适合青少年内容
+    language: zh-CN
+    gender: male
+    category: general
+    supported_tones:
+      - neutral
+      - happy
+      - excited
+
+  - id: zh_male_zhuangzhong
+    name: 庄重男声
+    description: 庄重严肃的男声，适合新闻、解说
+    language: zh-CN
+    gender: male
+    category: general
+    supported_tones:
+      - neutral
+      - angry
+
+  # 童声音色
+  - id: zh_child_tongzhen
+    name: 童真童声
+    description: 天真可爱的童声
+    language: zh-CN
+    gender: child
+    category: child
+    supported_tones:
+      - neutral
+      - happy
+      - surprised
+
+  # 情感音色 - 女声
+  - id: zh_female_qingxin_emotion
+    name: 情感清新女声
+    description: 支持多情感的清新女声
+    language: zh-CN
+    gender: female
+    category: emotion
+    supported_tones:
+      - neutral
+      - happy
+      - sad
+      - angry
+      - excited
+      - fearful
+      - surprised
+      - disgusted
+
+  - id: zh_female_tianmei_emotion
+    name: 情感甜美女声
+    description: 支持多情感的甜美女声
+    language: zh-CN
+    gender: female
+    category: emotion
+    supported_tones:
+      - neutral
+      - happy
+      - sad
+      - angry
+      - excited
+      - fearful
+      - surprised
+
+  # 情感音色 - 男声
+  - id: zh_male_chunhou_emotion
+    name: 情感醇厚男声
+    description: 支持多情感的醇厚男声
+    language: zh-CN
+    gender: male
+    category: emotion
+    supported_tones:
+      - neutral
+      - happy
+      - sad
+      - angry
+      - excited
+      - fearful
+      - surprised
+      - disgusted
+
+  - id: zh_male_yangguang_emotion
+    name: 情感阳光男声
+    description: 支持多情感的阳光男声
+    language: zh-CN
+    gender: male
+    category: emotion
+    supported_tones:
+      - neutral
+      - happy
+      - sad
+      - angry
+      - excited
+      - surprised
+
+  # 方言音色
+  - id: zh_cantonese_female
+    name: 粤语女声
+    description: 标准粤语女声
+    language: zh-YUE
+    gender: female
+    category: dialect
+    supported_tones:
+      - neutral
+      - happy
+
+  - id: zh_cantonese_male
+    name: 粤语男声
+    description: 标准粤语男声
+    language: zh-YUE
+    gender: male
+    category: dialect
+    supported_tones:
+      - neutral
+
+  - id: zh_sichuan_female
+    name: 四川话女声
+    description: 四川话女声
+    language: zh-SICHUAN
+    gender: female
+    category: dialect
+    supported_tones:
+      - neutral
+      - happy
+
+  - id: zh_dongbei_male
+    name: 东北话男声
+    description: 东北话男声
+    language: zh-DONGBEI
+    gender: male
+    category: dialect
+    supported_tones:
+      - neutral
+      - angry
+
+  # 英语言色
+  - id: en_female_general
+    name: 英语女声
+    description: 标准英语女声
+    language: en-US
+    gender: female
+    category: english
+    supported_tones:
+      - neutral
+      - happy
+
+  - id: en_male_general
+    name: 英语男声
+    description: 标准英语男声
+    language: en-US
+    gender: male
+    category: english
+    supported_tones:
+      - neutral
+
+  # 日语言色
+  - id: ja_female_general
+    name: 日语女声
+    description: 标准日语女声
+    language: ja-JP
+    gender: female
+    category: japanese
+    supported_tones:
+      - neutral
+      - happy
+
+  - id: ja_male_general
+    name: 日语男声
+    description: 标准日语男声
+    language: ja-JP
+    gender: male
+    category: japanese
+    supported_tones:
+      - neutral
+
+# 音色分类
+categories:
+  - key: general
+    name: 通用音色
+    description: 适用于大多数场景的基础音色
+
+  - key: emotion
+    name: 情感音色
+    description: 支持多种情感风格的音色
+
+  - key: child
+    name: 童声音色
+    description: 儿童音色
+
+  - key: dialect
+    name: 方言音色
+    description: 各地方言音色
+
+  - key: english
+    name: 英语音色
+    description: 英语音色
+
+  - key: japanese
+    name: 日语音色
+    description: 日语音色

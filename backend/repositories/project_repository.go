@@ -7,7 +7,7 @@ import (
 	"tmy2/backend/utils"
 )
 
-// Project 工程模型（导出）
+// Project 工程模型
 type Project struct {
 	ID          int64     `json:"id"`
 	Name        string    `json:"name"`
@@ -27,14 +27,16 @@ type ProjectRepository interface {
 
 // projectRepository 工程数据访问实现
 type projectRepository struct {
-	db *sql.DB
 }
 
 // NewProjectRepository 创建工程数据访问实例
 func NewProjectRepository() ProjectRepository {
-	return &projectRepository{
-		db: utils.DB,
-	}
+	return &projectRepository{}
+}
+
+// getDB 获取数据库连接
+func (r *projectRepository) getDB() *sql.DB {
+	return utils.DB
 }
 
 // Create 创建工程
@@ -43,7 +45,7 @@ func (r *projectRepository) Create(project *Project) error {
 	project.CreatedAt = now
 	project.UpdatedAt = now
 
-	result, err := r.db.Exec(
+	result, err := r.getDB().Exec(
 		"INSERT INTO projects (name, description, created_at, updated_at) VALUES (?, ?, ?, ?)",
 		project.Name, project.Description, project.CreatedAt, project.UpdatedAt,
 	)
@@ -62,7 +64,7 @@ func (r *projectRepository) Create(project *Project) error {
 
 // GetAll 获取所有工程
 func (r *projectRepository) GetAll() ([]*Project, error) {
-	rows, err := r.db.Query("SELECT id, name, description, created_at, updated_at FROM projects ORDER BY created_at DESC")
+	rows, err := r.getDB().Query("SELECT id, name, description, created_at, updated_at FROM projects ORDER BY created_at DESC")
 	if err != nil {
 		return nil, err
 	}
@@ -83,7 +85,7 @@ func (r *projectRepository) GetAll() ([]*Project, error) {
 // GetByID 根据 ID 获取工程
 func (r *projectRepository) GetByID(id int64) (*Project, error) {
 	var project Project
-	err := r.db.QueryRow(
+	err := r.getDB().QueryRow(
 		"SELECT id, name, description, created_at, updated_at FROM projects WHERE id = ?",
 		id,
 	).Scan(&project.ID, &project.Name, &project.Description, &project.CreatedAt, &project.UpdatedAt)
@@ -100,7 +102,7 @@ func (r *projectRepository) GetByID(id int64) (*Project, error) {
 // Update 更新工程
 func (r *projectRepository) Update(project *Project) error {
 	project.UpdatedAt = time.Now()
-	_, err := r.db.Exec(
+	_, err := r.getDB().Exec(
 		"UPDATE projects SET name = ?, description = ?, updated_at = ? WHERE id = ?",
 		project.Name, project.Description, project.UpdatedAt, project.ID,
 	)
@@ -109,6 +111,6 @@ func (r *projectRepository) Update(project *Project) error {
 
 // Delete 删除工程
 func (r *projectRepository) Delete(id int64) error {
-	_, err := r.db.Exec("DELETE FROM projects WHERE id = ?", id)
+	_, err := r.getDB().Exec("DELETE FROM projects WHERE id = ?", id)
 	return err
 }

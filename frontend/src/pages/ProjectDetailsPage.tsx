@@ -244,12 +244,15 @@ const ProjectDetailsPage: React.FC = () => {
           min-height: 100vh;
           display: flex;
           flex-direction: column;
+          padding-top: 73px;
         }
 
         /* 固定顶部导航栏 */
         .page-header {
-          position: sticky;
+          position: fixed;
           top: 0;
+          left: 0;
+          right: 0;
           z-index: 100;
           background: linear-gradient(135deg, #1E2A3A 0%, #253548 100%);
           border-bottom: 1px solid #2D3E54;

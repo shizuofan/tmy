@@ -27,26 +27,72 @@ tmy2/
 ├── go.mod                  # Go 模块定义
 ├── go.sum                  # 依赖锁定
 ├── wails.json              # Wails 配置
+├── config/
+│   └── voices.yaml         # 音色配置
 ├── backend/
 │   ├── models/
 │   │   └── models.go       # 数据模型定义
+│   ├── controllers/
+│   │   ├── project_controller.go
+│   │   ├── chapter_controller.go
+│   │   ├── character_controller.go
+│   │   └── voice_controller.go
+│   ├── services/
+│   │   ├── project_service.go
+│   │   ├── chapter_service.go
+│   │   ├── character_service.go
+│   │   └── voice_service.go
 │   ├── repositories/
 │   │   ├── project_repository.go
-│   │   └── chapter_repository.go
+│   │   ├── chapter_repository.go
+│   │   └── character_repository.go
 │   └── utils/
-│       └── database.go     # 数据库初始化
+│       ├── database.go     # 数据库初始化
+│       ├── voice_config.go # 音色配置加载
+│       └── llm_client.go   # LLM 客户端
 ├── frontend/
 │   ├── src/
 │   │   ├── App.tsx
+│   │   ├── App.css
 │   │   ├── main.tsx
+│   │   ├── style.css
 │   │   ├── components/
+│   │   │   ├── ChapterManager.tsx
+│   │   │   └── RoleManager.tsx
 │   │   ├── pages/
+│   │   │   ├── HomePage.tsx
+│   │   │   ├── ProjectDetailsPage.tsx
+│   │   │   └── ChapterEditor.tsx
 │   │   ├── types/
-│   │   └── utils/
+│   │   │   └── index.ts
+│   │   ├── utils/
+│   │   │   └── api.ts
+│   │   └── assets/
+│   │       ├── fonts/
+│   │       └── images/
 │   ├── wailsjs/            # Wails 生成的绑定
-│   └── package.json
+│   ├── package.json
+│   ├── tsconfig.json
+│   ├── tsconfig.node.json
+│   └── vite.config.ts
 └── build/                   # 构建输出目录
 ```
+
+## 架构分层
+
+### 层级职责
+
+| 层级 | 职责 | 模型 |
+|------|------|------|
+| Controllers | 接收请求、参数转发、调用 Service | models.* |
+| Services | 业务逻辑、模型转换 | models.* ↔ repositories.* |
+| Repositories | 数据访问、SQL 操作 | repositories.* |
+
+### 模型转换
+
+- Repo 层使用自己的模型（`repositories.Chapter`、`repositories.Paragraph` 等）
+- Service 层负责模型转换（`toRepoXxx`、`toModelsXxx`）
+- Controller 和上层统一使用 `models.*` 模型
 
 ## 数据模型
 
@@ -69,6 +115,7 @@ tmy2/
 | Title | string | 章节标题 |
 | Content | string | 章节原始内容 |
 | OrderIndex | int | 排序索引 |
+| ParagraphList | []Paragraph | 段落列表 |
 | CreatedAt | time.Time | 创建时间 |
 | UpdatedAt | time.Time | 更新时间 |
 
@@ -207,11 +254,44 @@ DeleteChapter(id int64) error
 ReorderChapters(projectID int64, chapterIDs []int64) error
 ```
 
+### 段落管理
+
+```go
+CreateParagraph(chapterID int64, content, speaker, tone, voiceID string, speed float64) (int64, error)
+GetParagraphs(chapterID int64) ([]*Paragraph, error)
+GetParagraph(id int64) (*Paragraph, error)
+UpdateParagraph(id int64, content, speaker, tone, voiceID string, speed float64, audioPath string, duration float64, orderIndex int) error
+DeleteParagraph(id int64) error
+```
+
+### 角色管理
+
+```go
+CreateCharacter(projectID int64, name, description, voiceID string) (int64, error)
+GetCharacters(projectID int64) ([]*Character, error)
+GetCharacter(id int64) (*Character, error)
+UpdateCharacter(id int64, name, description, voiceID string) error
+DeleteCharacter(id int64) error
+```
+
+### 音色管理
+
+```go
+GetVoices() ([]*Voice, error)
+GetVoice(id string) (*Voice, error)
+```
+
+### LLM 文本解析
+
+```go
+SetLLMConfig(apiKey, endpoint, modelName string)
+GetLLMConfig() LLMConfig
+SplitParagraph(chapterID int64) ([]*Paragraph, error)
+SplitParagraphPreview(content string) ([]*Paragraph, error)
+```
+
 ### 待实现 API
 
-- 段落管理 API
-- 角色管理 API
-- LLM 文本解析 API
 - 语音合成 API
 - 音频播放控制 API
 
@@ -244,7 +324,7 @@ CREATE TABLE chapters (
 );
 ```
 
-### paragraphs 表 (待实现)
+### paragraphs 表
 
 ```sql
 CREATE TABLE paragraphs (
@@ -264,7 +344,7 @@ CREATE TABLE paragraphs (
 );
 ```
 
-### characters 表 (待实现)
+### characters 表
 
 ```sql
 CREATE TABLE characters (
@@ -278,6 +358,24 @@ CREATE TABLE characters (
     FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
 );
 ```
+
+### voices 表
+
+```sql
+CREATE TABLE voices (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    description TEXT,
+    supported_tones TEXT,
+    language TEXT
+);
+```
+
+## 配置文件
+
+### voices.yaml
+
+音色配置文件，定义可用的音色列表。
 
 ## 开发命令
 
@@ -301,3 +399,4 @@ CREATE TABLE characters (
 
 - 依赖版本尽量使用稳定版
 - 前端部分不要添加新依赖
+- Repo 层继续使用 repo 层模型，Controller 层和 Service 层使用 models 模型

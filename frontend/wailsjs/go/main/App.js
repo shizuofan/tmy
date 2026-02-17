@@ -10,6 +10,10 @@ export function CreateCharacter(arg1, arg2, arg3, arg4) {
   return window['go']['main']['App']['CreateCharacter'](arg1, arg2, arg3, arg4);
 }
 
+export function CreateParagraph(arg1, arg2, arg3, arg4, arg5, arg6) {
+  return window['go']['main']['App']['CreateParagraph'](arg1, arg2, arg3, arg4, arg5, arg6);
+}
+
 export function CreateProject(arg1, arg2) {
   return window['go']['main']['App']['CreateProject'](arg1, arg2);
 }
@@ -20,6 +24,10 @@ export function DeleteChapter(arg1) {
 
 export function DeleteCharacter(arg1) {
   return window['go']['main']['App']['DeleteCharacter'](arg1);
+}
+
+export function DeleteParagraph(arg1) {
+  return window['go']['main']['App']['DeleteParagraph'](arg1);
 }
 
 export function DeleteProject(arg1) {
@@ -42,6 +50,18 @@ export function GetCharacters(arg1) {
   return window['go']['main']['App']['GetCharacters'](arg1);
 }
 
+export function GetLLMConfig() {
+  return window['go']['main']['App']['GetLLMConfig']();
+}
+
+export function GetParagraph(arg1) {
+  return window['go']['main']['App']['GetParagraph'](arg1);
+}
+
+export function GetParagraphs(arg1) {
+  return window['go']['main']['App']['GetParagraphs'](arg1);
+}
+
 export function GetProject(arg1) {
   return window['go']['main']['App']['GetProject'](arg1);
 }
@@ -62,12 +82,28 @@ export function ReorderChapters(arg1, arg2) {
   return window['go']['main']['App']['ReorderChapters'](arg1, arg2);
 }
 
+export function SetLLMConfig(arg1, arg2, arg3) {
+  return window['go']['main']['App']['SetLLMConfig'](arg1, arg2, arg3);
+}
+
+export function SplitParagraph(arg1) {
+  return window['go']['main']['App']['SplitParagraph'](arg1);
+}
+
+export function SplitParagraphPreview(arg1) {
+  return window['go']['main']['App']['SplitParagraphPreview'](arg1);
+}
+
 export function UpdateChapter(arg1, arg2, arg3) {
   return window['go']['main']['App']['UpdateChapter'](arg1, arg2, arg3);
 }
 
 export function UpdateCharacter(arg1, arg2, arg3, arg4) {
   return window['go']['main']['App']['UpdateCharacter'](arg1, arg2, arg3, arg4);
+}
+
+export function UpdateParagraph(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9) {
+  return window['go']['main']['App']['UpdateParagraph'](arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9);
 }
 
 export function UpdateProject(arg1, arg2, arg3) {

@@ -15,29 +15,30 @@ type Project struct {
 
 // Chapter 章节模型
 type Chapter struct {
-	ID         int64     `json:"id"`
-	ProjectID  int64     `json:"projectId"`
-	Title      string    `json:"title"`
-	Content    string    `json:"content"`
-	OrderIndex int       `json:"orderIndex"`
-	CreatedAt  time.Time `json:"createdAt"`
-	UpdatedAt  time.Time `json:"updatedAt"`
+	ID            int64       `json:"id"`
+	ProjectID     int64       `json:"projectId"`
+	Title         string      `json:"title"`
+	Content       string      `json:"content"`
+	OrderIndex    int         `json:"orderIndex"`
+	ParagraphList []Paragraph `json:"paragraphList"` // 段落列表
+	CreatedAt     time.Time   `json:"createdAt"`
+	UpdatedAt     time.Time   `json:"updatedAt"`
 }
 
 // Paragraph 段落模型
 type Paragraph struct {
-	ID          int64     `json:"id"`
-	ChapterID   int64     `json:"chapterId"`
-	Content     string    `json:"content"`
-	Speaker     string    `json:"speaker"` // 说话角色
-	Tone        string    `json:"tone"`    // 情感参数
-	VoiceID     string    `json:"voiceId"` // 音色ID
-	Speed       float64   `json:"speed"`   // 语速
-	AudioPath   string    `json:"audioPath"` // 音频文件路径
-	Duration    float64   `json:"duration"` // 音频时长
-	OrderIndex  int       `json:"orderIndex"`
-	CreatedAt   time.Time `json:"createdAt"`
-	UpdatedAt   time.Time `json:"updatedAt"`
+	ID         int64     `json:"id"`
+	ChapterID  int64     `json:"chapterId"`
+	Content    string    `json:"content"`
+	Speaker    string    `json:"speaker"`   // 说话角色
+	Tone       string    `json:"tone"`      // 情感参数
+	VoiceID    string    `json:"voiceId"`   // 音色ID
+	Speed      float64   `json:"speed"`     // 语速
+	AudioPath  string    `json:"audioPath"` // 音频文件路径
+	Duration   float64   `json:"duration"`  // 音频时长
+	OrderIndex int       `json:"orderIndex"`
+	CreatedAt  time.Time `json:"createdAt"`
+	UpdatedAt  time.Time `json:"updatedAt"`
 }
 
 // Character 角色模型

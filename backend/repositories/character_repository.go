@@ -8,7 +8,7 @@ import (
 	"tmy2/backend/utils"
 )
 
-// Character 角色模型（导出）
+// Character 角色模型
 type Character struct {
 	ID          int64     `json:"id"`
 	ProjectID   int64     `json:"projectId"`
@@ -19,7 +19,7 @@ type Character struct {
 	UpdatedAt   time.Time `json:"updatedAt"`
 }
 
-// Voice 音色模型（导出）
+// Voice 音色模型
 type Voice struct {
 	ID             string   `json:"id"`
 	Name           string   `json:"name"`
@@ -41,14 +41,16 @@ type CharacterRepository interface {
 
 // characterRepository 角色数据访问实现
 type characterRepository struct {
-	db *sql.DB
 }
 
 // NewCharacterRepository 创建角色数据访问实例
 func NewCharacterRepository() CharacterRepository {
-	return &characterRepository{
-		db: utils.DB,
-	}
+	return &characterRepository{}
+}
+
+// getDB 获取数据库连接
+func (r *characterRepository) getDB() *sql.DB {
+	return utils.DB
 }
 
 // Create 创建角色
@@ -57,7 +59,7 @@ func (r *characterRepository) Create(character *Character) error {
 	character.CreatedAt = now
 	character.UpdatedAt = now
 
-	result, err := r.db.Exec(
+	result, err := r.getDB().Exec(
 		"INSERT INTO characters (project_id, name, description, voice_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
 		character.ProjectID, character.Name, character.Description, character.VoiceID, character.CreatedAt, character.UpdatedAt,
 	)
@@ -76,7 +78,7 @@ func (r *characterRepository) Create(character *Character) error {
 
 // GetByProjectID 获取工程的所有角色
 func (r *characterRepository) GetByProjectID(projectID int64) ([]*Character, error) {
-	rows, err := r.db.Query(
+	rows, err := r.getDB().Query(
 		"SELECT id, project_id, name, description, voice_id, created_at, updated_at FROM characters WHERE project_id = ? ORDER BY created_at ASC",
 		projectID,
 	)
@@ -103,7 +105,7 @@ func (r *characterRepository) GetByProjectID(projectID int64) ([]*Character, err
 // GetByID 根据 ID 获取角色
 func (r *characterRepository) GetByID(id int64) (*Character, error) {
 	var character Character
-	err := r.db.QueryRow(
+	err := r.getDB().QueryRow(
 		"SELECT id, project_id, name, description, voice_id, created_at, updated_at FROM characters WHERE id = ?",
 		id,
 	).Scan(
@@ -123,7 +125,7 @@ func (r *characterRepository) GetByID(id int64) (*Character, error) {
 // Update 更新角色
 func (r *characterRepository) Update(character *Character) error {
 	character.UpdatedAt = time.Now()
-	_, err := r.db.Exec(
+	_, err := r.getDB().Exec(
 		"UPDATE characters SET name = ?, description = ?, voice_id = ?, updated_at = ? WHERE id = ?",
 		character.Name, character.Description, character.VoiceID, character.UpdatedAt, character.ID,
 	)
@@ -132,13 +134,13 @@ func (r *characterRepository) Update(character *Character) error {
 
 // Delete 删除角色
 func (r *characterRepository) Delete(id int64) error {
-	_, err := r.db.Exec("DELETE FROM characters WHERE id = ?", id)
+	_, err := r.getDB().Exec("DELETE FROM characters WHERE id = ?", id)
 	return err
 }
 
 // GetAllVoices 获取所有音色
 func (r *characterRepository) GetAllVoices() ([]*Voice, error) {
-	rows, err := r.db.Query("SELECT id, name, description, supported_tones, language FROM voices ORDER BY id")
+	rows, err := r.getDB().Query("SELECT id, name, description, supported_tones, language FROM voices ORDER BY id")
 	if err != nil {
 		return nil, err
 	}
@@ -171,7 +173,7 @@ func (r *characterRepository) GetAllVoices() ([]*Voice, error) {
 func (r *characterRepository) GetVoiceByID(id string) (*Voice, error) {
 	var voice Voice
 	var supportedTonesStr string
-	err := r.db.QueryRow(
+	err := r.getDB().QueryRow(
 		"SELECT id, name, description, supported_tones, language FROM voices WHERE id = ?",
 		id,
 	).Scan(

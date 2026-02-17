@@ -1,11 +1,66 @@
-export namespace repositories {
+export namespace models {
 	
+	export class Paragraph {
+	    id: number;
+	    chapterId: number;
+	    content: string;
+	    speaker: string;
+	    tone: string;
+	    voiceId: string;
+	    speed: number;
+	    audioPath: string;
+	    duration: number;
+	    orderIndex: number;
+	    // Go type: time
+	    createdAt: any;
+	    // Go type: time
+	    updatedAt: any;
+	
+	    static createFrom(source: any = {}) {
+	        return new Paragraph(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.chapterId = source["chapterId"];
+	        this.content = source["content"];
+	        this.speaker = source["speaker"];
+	        this.tone = source["tone"];
+	        this.voiceId = source["voiceId"];
+	        this.speed = source["speed"];
+	        this.audioPath = source["audioPath"];
+	        this.duration = source["duration"];
+	        this.orderIndex = source["orderIndex"];
+	        this.createdAt = this.convertValues(source["createdAt"], null);
+	        this.updatedAt = this.convertValues(source["updatedAt"], null);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
 	export class Chapter {
 	    id: number;
 	    projectId: number;
 	    title: string;
 	    content: string;
 	    orderIndex: number;
+	    paragraphList: Paragraph[];
 	    // Go type: time
 	    createdAt: any;
 	    // Go type: time
@@ -22,6 +77,7 @@ export namespace repositories {
 	        this.title = source["title"];
 	        this.content = source["content"];
 	        this.orderIndex = source["orderIndex"];
+	        this.paragraphList = this.convertValues(source["paragraphList"], Paragraph);
 	        this.createdAt = this.convertValues(source["createdAt"], null);
 	        this.updatedAt = this.convertValues(source["updatedAt"], null);
 	    }
@@ -88,6 +144,7 @@ export namespace repositories {
 		    return a;
 		}
 	}
+	
 	export class Project {
 	    id: number;
 	    name: string;
@@ -146,6 +203,27 @@ export namespace repositories {
 	        this.description = source["description"];
 	        this.supportedTones = source["supportedTones"];
 	        this.language = source["language"];
+	    }
+	}
+
+}
+
+export namespace utils {
+	
+	export class LLMConfig {
+	    apiKey: string;
+	    endpoint: string;
+	    modelName: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new LLMConfig(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.apiKey = source["apiKey"];
+	        this.endpoint = source["endpoint"];
+	        this.modelName = source["modelName"];
 	    }
 	}
 
