@@ -35,15 +35,21 @@ export function GetParagraphs(arg1:number):Promise<Array<models.Paragraph>>;
 
 export function GetProject(arg1:number):Promise<models.Project>;
 
+export function GetProjectLLMApiKey(arg1:number):Promise<string>;
+
 export function GetProjects():Promise<Array<models.Project>>;
 
 export function GetVoice(arg1:string):Promise<models.Voice>;
 
 export function GetVoices():Promise<Array<models.Voice>>;
 
+export function Log(arg1:string,arg2:string,arg3:string):Promise<void>;
+
 export function ReorderChapters(arg1:number,arg2:Array<number>):Promise<void>;
 
 export function SetLLMConfig(arg1:string,arg2:string,arg3:string):Promise<void>;
+
+export function SetProjectLLMApiKey(arg1:number,arg2:string):Promise<void>;
 
 export function SplitParagraph(arg1:number):Promise<Array<models.Paragraph>>;
 

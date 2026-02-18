@@ -1,6 +1,7 @@
 package services
 
 import (
+	"context"
 	"fmt"
 
 	"tmy2/backend/models"
@@ -10,18 +11,20 @@ import (
 
 // ChapterService 章节服务
 type ChapterService struct {
-	repo      repositories.ChapterRepository
-	llmClient *utils.LLMClient
-	llmConfig utils.LLMConfig
+	repo           repositories.ChapterRepository
+	projectRepo    repositories.ProjectRepository
+	llmClient      *utils.LLMClient
+	llmConfig      utils.LLMConfig
 }
 
 // NewChapterService 创建章节服务
 func NewChapterService() *ChapterService {
 	config := utils.DefaultLLMConfig()
 	return &ChapterService{
-		repo:      repositories.NewChapterRepository(),
-		llmClient: utils.NewLLMClient(config),
-		llmConfig: config,
+		repo:        repositories.NewChapterRepository(),
+		projectRepo: repositories.NewProjectRepository(),
+		llmClient:   utils.NewLLMClient(config),
+		llmConfig:   config,
 	}
 }
 
@@ -180,22 +183,54 @@ func (s *ChapterService) DeleteParagraph(id int64) error {
 
 // SplitParagraph 调用 LLM 拆分章节文本为段落，并保存到数据库
 func (s *ChapterService) SplitParagraph(chapterID int64) ([]*models.Paragraph, error) {
+	utils.Info("开始拆分段落: chapterID=%d", chapterID)
 	chapter, err := s.repo.GetByID(chapterID)
 	if err != nil {
+		utils.Error("获取章节失败: chapterID=%d, err=%v", chapterID, err)
 		return nil, err
 	}
 	if chapter == nil {
+		utils.Warn("章节不存在: chapterID=%d", chapterID)
 		return nil, fmt.Errorf("chapter not found")
 	}
 
 	if chapter.Content == "" {
+		utils.Warn("章节内容为空: chapterID=%d", chapterID)
 		return nil, fmt.Errorf("章节内容为空")
 	}
 
-	llmParagraphs, err := s.llmClient.SplitParagraph(chapter.Content)
+	// 获取项目配置的 API Key
+	project, err := s.projectRepo.GetByID(chapter.ProjectID)
 	if err != nil {
+		utils.Error("获取项目信息失败: projectID=%d, err=%v", chapter.ProjectID, err)
+		return nil, fmt.Errorf("获取项目信息失败: %w", err)
+	}
+	if project == nil {
+		utils.Warn("项目不存在: projectID=%d", chapter.ProjectID)
+		return nil, fmt.Errorf("项目不存在")
+	}
+	if project.LLMApiKey == "" {
+		utils.Warn("项目未配置 API Key: projectID=%d", chapter.ProjectID)
+		return nil, fmt.Errorf("项目未配置 API Key，请先在项目设置中配置")
+	}
+
+	utils.Debug("调用 LLM 拆分段落: chapterID=%d, contentLength=%d", chapterID, len(chapter.Content))
+
+	// 使用项目 API Key 和固定的 model name 创建 LLM 客户端
+	config := utils.LLMConfig{
+		APIKey:    project.LLMApiKey,
+		Endpoint:  "https://ark.cn-beijing.volces.com/api/v3",
+		ModelName: "doubao-seed-2-0-lite-260215",
+	}
+	llmClient := utils.NewLLMClient(config)
+
+	llmParagraphs, err := llmClient.SplitParagraph(context.Background(), chapter.Content)
+	if err != nil {
+		utils.Error("LLM 拆分失败: chapterID=%d, err=%v", chapterID, err)
 		return nil, fmt.Errorf("LLM 拆分失败: %w", err)
 	}
+
+	utils.Info("LLM 拆分成功: chapterID=%d, 段落数=%d", chapterID, len(llmParagraphs))
 
 	existingParagraphs, err := s.repo.GetParagraphsByChapterID(chapterID)
 	if err == nil {
@@ -232,7 +267,7 @@ func (s *ChapterService) SplitParagraphPreview(content string) ([]*models.Paragr
 		return nil, fmt.Errorf("内容为空")
 	}
 
-	llmParagraphs, err := s.llmClient.SplitParagraph(content)
+	llmParagraphs, err := s.llmClient.SplitParagraph(context.Background(), content)
 	if err != nil {
 		return nil, fmt.Errorf("LLM 拆分失败: %w", err)
 	}

@@ -41,3 +41,13 @@ func (c *ProjectController) UpdateProject(id int64, name, description string) er
 func (c *ProjectController) DeleteProject(id int64) error {
 	return c.service.DeleteProject(id)
 }
+
+// SetProjectLLMApiKey 设置工程的 LLM API Key
+func (c *ProjectController) SetProjectLLMApiKey(id int64, apiKey string) error {
+	return c.service.SetProjectLLMApiKey(id, apiKey)
+}
+
+// GetProjectLLMApiKey 获取工程的 LLM API Key
+func (c *ProjectController) GetProjectLLMApiKey(id int64) (string, error) {
+	return c.service.GetProjectLLMApiKey(id)
+}

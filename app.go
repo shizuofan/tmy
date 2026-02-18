@@ -33,17 +33,34 @@ func NewApp() *App {
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
 
+	// 初始化日志系统
+	if err := utils.InitLogger(); err != nil {
+		log.Printf("Failed to initialize logger: %v", err)
+	}
+	utils.Info("应用启动")
+
 	// 初始化数据库
 	if err := utils.InitDB(); err != nil {
-		log.Printf("Failed to initialize database: %v", err)
+		utils.Error("初始化数据库失败: %v", err)
 	}
 }
 
 // shutdown is called when the app exits
 func (a *App) shutdown(ctx context.Context) {
+	utils.Info("应用关闭")
 	if err := utils.CloseDB(); err != nil {
-		log.Printf("Failed to close database: %v", err)
+		utils.Error("关闭数据库失败: %v", err)
 	}
+	if err := utils.CloseLogger(); err != nil {
+		log.Printf("Failed to close logger: %v", err)
+	}
+}
+
+// ========== 日志相关方法 ==========
+
+// Log 前端日志同步
+func (a *App) Log(level string, message string, source string) {
+	utils.LogFromFrontend(level, message, source)
 }
 
 // ========== 工程相关方法 ==========
@@ -71,6 +88,16 @@ func (a *App) UpdateProject(id int64, name, description string) error {
 // DeleteProject 删除工程
 func (a *App) DeleteProject(id int64) error {
 	return a.projectController.DeleteProject(id)
+}
+
+// SetProjectLLMApiKey 设置工程的 LLM API Key
+func (a *App) SetProjectLLMApiKey(id int64, apiKey string) error {
+	return a.projectController.SetProjectLLMApiKey(id, apiKey)
+}
+
+// GetProjectLLMApiKey 获取工程的 LLM API Key
+func (a *App) GetProjectLLMApiKey(id int64) (string, error) {
+	return a.projectController.GetProjectLLMApiKey(id)
 }
 
 // ========== 章节相关方法 ==========

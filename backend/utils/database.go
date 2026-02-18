@@ -48,12 +48,18 @@ func createTables() error {
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
 			name TEXT NOT NULL,
 			description TEXT,
+			llm_api_key TEXT,
 			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 		)
 	`)
 	if err != nil {
 		return err
+	}
+
+	// 迁移：为现有表添加 llm_api_key 列（如果不存在）
+	if err := addLLMApiKeyColumn(); err != nil {
+		log.Printf("Failed to add llm_api_key column: %v", err)
 	}
 
 	// 创建 chapters 表
@@ -195,6 +201,29 @@ func preloadDefaultVoices() error {
 		}
 	}
 
+	return nil
+}
+
+// addLLMApiKeyColumn 为 projects 表添加 llm_api_key 列（如果不存在）
+func addLLMApiKeyColumn() error {
+	// 检查列是否已存在
+	var count int
+	err := DB.QueryRow("SELECT COUNT(*) FROM pragma_table_info('projects') WHERE name = 'llm_api_key'").Scan(&count)
+	if err != nil {
+		return err
+	}
+
+	if count > 0 {
+		return nil // 列已存在，跳过
+	}
+
+	// 添加新列
+	_, err = DB.Exec("ALTER TABLE projects ADD COLUMN llm_api_key TEXT")
+	if err != nil {
+		return err
+	}
+
+	log.Println("Added llm_api_key column to projects table")
 	return nil
 }
 

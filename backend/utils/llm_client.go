@@ -1,12 +1,13 @@
 package utils
 
 import (
-	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
-	"time"
+	"strings"
+
+	"github.com/volcengine/volcengine-go-sdk/service/arkruntime"
+	"github.com/volcengine/volcengine-go-sdk/service/arkruntime/model"
 )
 
 // LLMConfig LLM 配置
@@ -36,16 +37,25 @@ type LLMParagraph struct {
 // LLMClient LLM 客户端
 type LLMClient struct {
 	config LLMConfig
-	client *http.Client
+	client *arkruntime.Client
 }
 
 // NewLLMClient 创建 LLM 客户端
 func NewLLMClient(config LLMConfig) *LLMClient {
+	var client *arkruntime.Client
+	if config.APIKey != "" {
+		baseURL := "https://ark.cn-beijing.volces.com/api/v3"
+		if config.Endpoint != "" {
+			baseURL = config.Endpoint
+		}
+		client = arkruntime.NewClientWithApiKey(
+			config.APIKey,
+			arkruntime.WithBaseUrl(baseURL),
+		)
+	}
 	return &LLMClient{
 		config: config,
-		client: &http.Client{
-			Timeout: 60 * time.Second,
-		},
+		client: client,
 	}
 }
 
@@ -53,28 +63,63 @@ func NewLLMClient(config LLMConfig) *LLMClient {
 func DefaultLLMConfig() LLMConfig {
 	return LLMConfig{
 		APIKey:    "", // 需要用户配置
-		Endpoint:  "https://ark.cn-beijing.volces.com/api/v3/chat/completions",
+		Endpoint:  "https://ark.cn-beijing.volces.com/api/v3",
 		ModelName: "ep-20250101000000-xxxxx", // 需要用户配置
 	}
 }
 
 // SplitParagraph 拆分章节文本为段落
-func (c *LLMClient) SplitParagraph(content string) ([]LLMParagraph, error) {
+func (c *LLMClient) SplitParagraph(ctx context.Context, content string) ([]LLMParagraph, error) {
+	Info("LLM SplitParagraph 开始: contentLength=%d", len(content))
+	Debug("LLM 配置: APIKey=****%s, ModelName=%s, Endpoint=%s",
+		maskAPIKey(c.config.APIKey), c.config.ModelName, c.config.Endpoint)
+
 	if c.config.APIKey == "" || c.config.ModelName == "" {
+		Error("LLM 配置不完整: APIKey=%v, ModelName=%v", c.config.APIKey == "", c.config.ModelName == "")
 		return nil, fmt.Errorf("LLM 配置未完成，请先配置 API Key 和 Model Name")
+	}
+
+	if c.client == nil {
+		Error("LLM 客户端未初始化")
+		return nil, fmt.Errorf("LLM 客户端未初始化")
+	}
+
+	if ctx == nil {
+		ctx = context.Background()
+		Debug("使用默认 context.Background()")
 	}
 
 	// 构建提示词
 	prompt := buildSplitPrompt(content)
+	Debug("提示词构建完成，长度: %d", len(prompt))
 
 	// 调用 LLM
-	response, err := c.callChat(prompt)
+	Info("开始调用 LLM API...")
+	response, err := c.callChat(ctx, prompt)
 	if err != nil {
+		Error("LLM API 调用失败: %v", err)
 		return nil, err
 	}
+	Info("LLM API 调用成功，响应长度: %d", len(response))
+	Debug("LLM 响应内容: %s", response)
 
 	// 解析响应
-	return parseSplitResponse(response)
+	paragraphs, err := parseSplitResponse(response)
+	if err != nil {
+		Error("解析 LLM 响应失败: %v", err)
+		return nil, err
+	}
+	Info("LLM 响应解析成功，段落数: %d", len(paragraphs))
+
+	return paragraphs, nil
+}
+
+// maskAPIKey 掩码显示 API Key
+func maskAPIKey(key string) string {
+	if len(key) <= 8 {
+		return "****"
+	}
+	return key[:4] + "..." + key[len(key)-4:]
 }
 
 // buildSplitPrompt 构建拆分提示词
@@ -104,63 +149,52 @@ func buildSplitPrompt(content string) string {
 }
 
 // callChat 调用聊天 API
-func (c *LLMClient) callChat(prompt string) (string, error) {
-	requestBody := map[string]interface{}{
-		"model": c.config.ModelName,
-		"messages": []map[string]string{
+func (c *LLMClient) callChat(ctx context.Context, prompt string) (string, error) {
+	Debug("callChat: Model=%s, promptLength=%d", c.config.ModelName, len(prompt))
+
+	temperature := float32(0.7)
+	req := model.CreateChatCompletionRequest{
+		Model: c.config.ModelName,
+		Messages: []*model.ChatCompletionMessage{
 			{
-				"role":    "user",
-				"content": prompt,
+				Role: model.ChatMessageRoleUser,
+				Content: &model.ChatCompletionMessageContent{
+					StringValue: &prompt,
+				},
 			},
 		},
-		"temperature": 0.7,
+		Temperature: &temperature,
 	}
 
-	jsonBody, err := json.Marshal(requestBody)
+	Debug("正在发送请求到火山引擎 API...")
+	resp, err := c.client.CreateChatCompletion(ctx, req)
 	if err != nil {
-		return "", fmt.Errorf("序列化请求失败: %w", err)
+		Error("火山引擎 API 返回错误: %v", err)
+		return "", fmt.Errorf("API 调用失败: %w", err)
 	}
 
-	req, err := http.NewRequest("POST", c.config.Endpoint, bytes.NewBuffer(jsonBody))
-	if err != nil {
-		return "", fmt.Errorf("创建请求失败: %w", err)
-	}
+	Debug("API 响应收到: ID=%s, Choices=%d", resp.ID, len(resp.Choices))
 
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+c.config.APIKey)
-
-	resp, err := c.client.Do(req)
-	if err != nil {
-		return "", fmt.Errorf("请求失败: %w", err)
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return "", fmt.Errorf("读取响应失败: %w", err)
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("API 返回错误: %s - %s", resp.Status, string(body))
-	}
-
-	var chatResponse struct {
-		Choices []struct {
-			Message struct {
-				Content string `json:"content"`
-			} `json:"message"`
-		} `json:"choices"`
-	}
-
-	if err := json.Unmarshal(body, &chatResponse); err != nil {
-		return "", fmt.Errorf("解析响应失败: %w", err)
-	}
-
-	if len(chatResponse.Choices) == 0 {
+	if len(resp.Choices) == 0 {
+		Warn("API 返回空响应 Choices")
 		return "", fmt.Errorf("API 返回空响应")
 	}
 
-	return chatResponse.Choices[0].Message.Content, nil
+	// 提取消息内容
+	msg := resp.Choices[0].Message
+	if msg.Content == nil {
+		Warn("API 返回消息内容为 nil")
+		return "", fmt.Errorf("API 返回空消息内容")
+	}
+
+	if msg.Content.StringValue != nil {
+		result := *msg.Content.StringValue
+		Debug("成功提取消息内容，长度=%d", len(result))
+		return result, nil
+	}
+
+	Error("不支持的消息内容类型")
+	return "", fmt.Errorf("不支持的消息内容类型")
 }
 
 // parseSplitResponse 解析拆分响应
@@ -205,7 +239,12 @@ func parseSplitResponse(content string) ([]LLMParagraph, error) {
 	if startIdx >= 0 && endIdx > startIdx {
 		jsonStr = content[startIdx:endIdx]
 	} else {
-		jsonStr = content
+		// 如果找不到 JSON 格式，尝试清理 markdown 代码块标记
+		cleaned := strings.TrimSpace(content)
+		cleaned = strings.TrimPrefix(cleaned, "```json")
+		cleaned = strings.TrimPrefix(cleaned, "```")
+		cleaned = strings.TrimSuffix(cleaned, "```")
+		jsonStr = strings.TrimSpace(cleaned)
 	}
 
 	var response SplitParagraphResponse

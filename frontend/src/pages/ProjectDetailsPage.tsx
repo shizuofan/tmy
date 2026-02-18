@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Save, X, BookOpen, Calendar, Clock, Users, Sparkles } from 'lucide-react';
+import { ArrowLeft, Save, X, BookOpen, Calendar, Clock, Users, Sparkles, Key } from 'lucide-react';
 import api from '../utils/api';
 import ChapterManager from '../components/ChapterManager';
 import RoleManager from '../components/RoleManager';
@@ -12,7 +12,10 @@ const ProjectDetailsPage: React.FC = () => {
   const [project, setProject] = useState<Project | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const [isEditingApiKey, setIsEditingApiKey] = useState(false);
   const [editProject, setEditProject] = useState({ name: '', description: '' });
+  const [editApiKey, setEditApiKey] = useState('');
+  const [isSavingApiKey, setIsSavingApiKey] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -30,6 +33,7 @@ const ProjectDetailsPage: React.FC = () => {
           name: data.name,
           description: data.description,
         });
+        setEditApiKey(data.llmApiKey || '');
       }
     } catch (error) {
       console.error('Failed to load project:', error);
@@ -48,6 +52,26 @@ const ProjectDetailsPage: React.FC = () => {
       console.error('Failed to update project:', error);
     }
     setIsLoading(false);
+  };
+
+  const handleSaveApiKey = async () => {
+    if (!id) return;
+    setIsSavingApiKey(true);
+    try {
+      await api.setProjectLLMApiKey(parseInt(id), editApiKey);
+      setIsEditingApiKey(false);
+      loadProject(parseInt(id));
+    } catch (error) {
+      console.error('Failed to save API key:', error);
+    }
+    setIsSavingApiKey(false);
+  };
+
+  // 隐藏 API Key 的显示
+  const maskApiKey = (key: string) => {
+    if (!key) return '未设置';
+    if (key.length <= 8) return key;
+    return key.slice(0, 4) + '...' + key.slice(-4);
   };
 
   if (isLoading && !project) {
@@ -77,7 +101,7 @@ const ProjectDetailsPage: React.FC = () => {
 
   return (
     <div className="project-details-page">
-      {/* 固定顶部导航栏 */}
+      {/* 顶部导航栏 */}
       <header className="page-header">
         <div className="header-inner">
           <div className="header-left">
@@ -137,6 +161,13 @@ const ProjectDetailsPage: React.FC = () => {
                     <div className="info-item">
                       <div className="info-label">项目描述</div>
                       <div className="info-value">{project.description || '暂无描述'}</div>
+                    </div>
+                    <div className="info-item">
+                      <div className="info-label">API Key</div>
+                      <div className="info-value api-key-display">
+                        <Key size={14} />
+                        <span>{maskApiKey(project.llmApiKey)}</span>
+                      </div>
                     </div>
                   </div>
                   <div className="meta-row">
@@ -209,6 +240,79 @@ const ProjectDetailsPage: React.FC = () => {
             </div>
           </section>
 
+          {/* API Key 配置卡片 */}
+          <section className="api-key-section">
+            <div className="section-header">
+              <h2>
+                <Key size={18} />
+                文本大模型 API Key
+              </h2>
+              {!isEditingApiKey && (
+                <button
+                  className="btn-ghost"
+                  onClick={() => setIsEditingApiKey(true)}
+                  disabled={isLoading}
+                >
+                  配置
+                </button>
+              )}
+            </div>
+
+            <div className="api-key-card">
+              {!isEditingApiKey ? (
+                <div className="api-key-content">
+                  <div className="api-key-description">
+                    <p>在此项目中使用自定义的 API Key 来调用文本大模型服务。如果未设置，将使用系统默认配置。</p>
+                  </div>
+                  <div className="api-key-status">
+                    <div className={`status-indicator ${project.llmApiKey ? 'active' : 'inactive'}`}>
+                      {project.llmApiKey ? '已配置' : '未配置'}
+                    </div>
+                    {project.llmApiKey && (
+                      <span className="api-key-masked">{maskApiKey(project.llmApiKey)}</span>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div className="api-key-edit">
+                  <div className="form-group">
+                    <label htmlFor="llm-api-key">API Key</label>
+                    <input
+                      id="llm-api-key"
+                      type="password"
+                      value={editApiKey}
+                      onChange={(e) => setEditApiKey(e.target.value)}
+                      placeholder="请输入文本大模型 API Key"
+                      disabled={isSavingApiKey}
+                    />
+                    <p className="help-text">输入火山引擎文本大模型 API Key</p>
+                  </div>
+                  <div className="form-actions">
+                    <button
+                      className="btn-secondary"
+                      onClick={() => {
+                        setIsEditingApiKey(false);
+                        setEditApiKey(project.llmApiKey || '');
+                      }}
+                      disabled={isSavingApiKey}
+                    >
+                      <X size={16} />
+                      取消
+                    </button>
+                    <button
+                      className="btn-primary"
+                      onClick={handleSaveApiKey}
+                      disabled={isSavingApiKey}
+                    >
+                      <Save size={16} />
+                      {isSavingApiKey ? '保存中...' : '保存'}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </section>
+
           {/* 角色管理区域 */}
           <section className="character-section">
             <div className="section-header">
@@ -238,32 +342,41 @@ const ProjectDetailsPage: React.FC = () => {
       </main>
 
       <style>{`
+        * {
+          box-sizing: border-box;
+        }
+
+        html, body {
+          margin: 0;
+          padding: 0;
+          width: 100%;
+          height: 100%;
+          overflow: hidden;
+        }
+
         .project-details-page {
           background-color: #151E2B;
           color: #ECF0F1;
-          min-height: 100vh;
+          width: 100vw;
+          height: 100vh;
           display: flex;
           flex-direction: column;
-          padding-top: 73px;
+          overflow: hidden;
         }
 
-        /* 固定顶部导航栏 */
+        /* 顶部导航栏 */
         .page-header {
-          position: fixed;
-          top: 0;
-          left: 0;
-          right: 0;
-          z-index: 100;
+          flex-shrink: 0;
+          width: 100%;
           background: linear-gradient(135deg, #1E2A3A 0%, #253548 100%);
           border-bottom: 1px solid #2D3E54;
           box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
-          backdrop-filter: blur(10px);
         }
 
         .header-inner {
-          max-width: 1400px;
-          margin: 0 auto;
-          padding: 14px 24px;
+          max-width: none;
+          margin: 0;
+          padding: 12px 20px;
           display: flex;
           justify-content: space-between;
           align-items: center;
@@ -302,6 +415,7 @@ const ProjectDetailsPage: React.FC = () => {
           width: 1px;
           height: 32px;
           background: linear-gradient(to bottom, transparent, #334155, transparent);
+          flex-shrink: 0;
         }
 
         .project-title {
@@ -335,18 +449,21 @@ const ProjectDetailsPage: React.FC = () => {
         .header-right {
           display: flex;
           gap: 10px;
+          flex-shrink: 0;
         }
 
         /* 主内容区域 */
         .main-content {
           flex: 1;
           overflow-y: auto;
+          min-height: 0;
         }
 
         .content-wrapper {
           max-width: 1400px;
           margin: 0 auto;
-          padding: 28px 24px 40px;
+          padding: 20px;
+          width: 100%;
         }
 
         /* 区块通用样式 */
@@ -354,12 +471,12 @@ const ProjectDetailsPage: React.FC = () => {
           display: flex;
           justify-content: space-between;
           align-items: center;
-          margin-bottom: 16px;
+          margin-bottom: 14px;
         }
 
         .section-header h2 {
           margin: 0;
-          font-size: 1rem;
+          font-size: 0.95rem;
           font-weight: 600;
           color: #CBD5E1;
           display: flex;
@@ -368,9 +485,10 @@ const ProjectDetailsPage: React.FC = () => {
         }
 
         .project-info-section,
+        .api-key-section,
         .character-section,
         .chapter-section {
-          margin-bottom: 28px;
+          margin-bottom: 20px;
         }
 
         /* 角色管理容器 */
@@ -387,20 +505,20 @@ const ProjectDetailsPage: React.FC = () => {
           background: linear-gradient(145deg, #1E2A3A 0%, #1A2432 100%);
           border: 1px solid #2D3E54;
           border-radius: 12px;
-          padding: 24px;
+          padding: 18px;
           box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
         }
 
         .project-info-content {
           display: flex;
           flex-direction: column;
-          gap: 20px;
+          gap: 16px;
         }
 
         .info-grid {
           display: grid;
           grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-          gap: 20px;
+          gap: 16px;
         }
 
         .info-item {
@@ -410,7 +528,7 @@ const ProjectDetailsPage: React.FC = () => {
         }
 
         .info-label {
-          font-size: 0.8rem;
+          font-size: 0.78rem;
           font-weight: 500;
           color: #64748B;
           text-transform: uppercase;
@@ -418,23 +536,33 @@ const ProjectDetailsPage: React.FC = () => {
         }
 
         .info-value {
-          font-size: 1rem;
+          font-size: 0.95rem;
           color: #E2E8F0;
           line-height: 1.5;
         }
 
+        .api-key-display {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+
+        .api-key-display svg {
+          color: #00A8FF;
+        }
+
         .meta-row {
           display: flex;
-          gap: 24px;
-          padding-top: 16px;
+          gap: 16px;
+          padding-top: 12px;
           border-top: 1px solid #2D3E54;
         }
 
         .meta-item {
           display: flex;
           align-items: center;
-          gap: 8px;
-          font-size: 0.85rem;
+          gap: 6px;
+          font-size: 0.8rem;
           color: #64748B;
         }
 
@@ -442,23 +570,86 @@ const ProjectDetailsPage: React.FC = () => {
           color: #475569;
         }
 
+        /* API Key 配置卡片 */
+        .api-key-card {
+          background: linear-gradient(145deg, #1E2A3A 0%, #1A2432 100%);
+          border: 1px solid #2D3E54;
+          border-radius: 12px;
+          padding: 18px;
+          box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+        }
+
+        .api-key-content {
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+        }
+
+        .api-key-description p {
+          margin: 0;
+          color: #94A3B8;
+          font-size: 0.9rem;
+          line-height: 1.6;
+        }
+
+        .api-key-status {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+        }
+
+        .status-indicator {
+          padding: 4px 12px;
+          border-radius: 6px;
+          font-size: 0.8rem;
+          font-weight: 500;
+        }
+
+        .status-indicator.active {
+          background: rgba(16, 185, 129, 0.15);
+          color: #10B981;
+        }
+
+        .status-indicator.inactive {
+          background: rgba(148, 163, 184, 0.15);
+          color: #94A3B8;
+        }
+
+        .api-key-masked {
+          color: #00A8FF;
+          font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+          font-size: 0.85rem;
+        }
+
+        .api-key-edit {
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+        }
+
+        .help-text {
+          margin: 6px 0 0;
+          font-size: 0.8rem;
+          color: #64748B;
+        }
+
         /* 编辑表单 */
         .project-info-edit {
           display: flex;
           flex-direction: column;
-          gap: 16px;
+          gap: 14px;
         }
 
         .form-grid {
           display: flex;
           flex-direction: column;
-          gap: 16px;
+          gap: 14px;
         }
 
         .form-group {
           display: flex;
           flex-direction: column;
-          gap: 8px;
+          gap: 6px;
         }
 
         .form-group.full-width {
@@ -467,18 +658,18 @@ const ProjectDetailsPage: React.FC = () => {
 
         .form-group label {
           color: #94A3B8;
-          font-size: 0.85rem;
+          font-size: 0.82rem;
           font-weight: 500;
         }
 
         .form-group input,
         .form-group textarea {
-          padding: 10px 14px;
+          padding: 9px 12px;
           background-color: #151E2B;
           border: 1px solid #334155;
           border-radius: 8px;
           color: #E2E8F0;
-          font-size: 0.95rem;
+          font-size: 0.9rem;
           transition: all 0.2s ease;
         }
 
@@ -498,7 +689,7 @@ const ProjectDetailsPage: React.FC = () => {
           display: flex;
           justify-content: flex-end;
           gap: 10px;
-          padding-top: 8px;
+          padding-top: 6px;
         }
 
         /* 章节管理容器 */
@@ -514,10 +705,10 @@ const ProjectDetailsPage: React.FC = () => {
         .btn-primary,
         .btn-secondary,
         .btn-ghost {
-          padding: 9px 16px;
+          padding: 8px 14px;
           border: none;
           border-radius: 8px;
-          font-size: 0.9rem;
+          font-size: 0.85rem;
           font-weight: 500;
           cursor: pointer;
           display: inline-flex;
@@ -566,6 +757,7 @@ const ProjectDetailsPage: React.FC = () => {
           opacity: 0.5;
           cursor: not-allowed;
           transform: none;
+          box-shadow: none;
         }
 
         /* 加载和错误状态 */
@@ -575,7 +767,8 @@ const ProjectDetailsPage: React.FC = () => {
           flex-direction: column;
           align-items: center;
           justify-content: center;
-          min-height: 100vh;
+          width: 100%;
+          height: 100%;
           color: #CBD5E1;
         }
 

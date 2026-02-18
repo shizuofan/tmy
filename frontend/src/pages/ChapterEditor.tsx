@@ -19,6 +19,10 @@ import {
   Edit2,
   X,
   Check,
+  Save,
+  AlertCircle,
+  FileText,
+  Sparkles,
 } from 'lucide-react';
 import api from '../utils/api';
 import { Chapter, Paragraph, Character, Voice, SupportedTones, DefSpeed } from '../types';
@@ -28,6 +32,10 @@ interface TimelineSegment {
   start: number;
   end: number;
   paragraph: Paragraph;
+}
+
+interface ParagraphEditState {
+  [key: number]: Paragraph;
 }
 
 const ChapterEditor: React.FC = () => {
@@ -49,81 +57,14 @@ const ChapterEditor: React.FC = () => {
     voiceId: '',
     speed: DefSpeed,
   });
+  const [dirtyParagraphs, setDirtyParagraphs] = useState<Set<number>>(new Set());
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+  const [showTextEditor, setShowTextEditor] = useState(false);
+  const [chapterText, setChapterText] = useState('');
+  const [isSavingChapter, setIsSavingChapter] = useState(false);
+  const [isGeneratingScript, setIsGeneratingScript] = useState(false);
   const timelineRef = useRef<HTMLDivElement>(null);
-
-  // 模拟数据 - 实际项目中从 API 获取
-  const mockParagraphs: Paragraph[] = [
-    {
-      id: 1,
-      chapterId: parseInt(chapterId || '0'),
-      content: '这是一个宁静的夜晚，月光透过窗户洒进房间。',
-      speaker: '旁白',
-      tone: 'neutral',
-      voiceId: 'BV001',
-      speed: 1.0,
-      audioPath: '',
-      duration: 3.5,
-      orderIndex: 0,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    },
-    {
-      id: 2,
-      chapterId: parseInt(chapterId || '0'),
-      content: '"你来了。"她轻声说道，声音中带着一丝颤抖。',
-      speaker: '女主角',
-      tone: 'sad',
-      voiceId: 'BV002',
-      speed: 0.9,
-      audioPath: '',
-      duration: 2.8,
-      orderIndex: 1,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    },
-    {
-      id: 3,
-      chapterId: parseInt(chapterId || '0'),
-      content: '"是的，我来了。"他站在门口，身影被月光拉得很长。',
-      speaker: '男主角',
-      tone: 'neutral',
-      voiceId: 'BV001',
-      speed: 1.0,
-      audioPath: '',
-      duration: 3.2,
-      orderIndex: 2,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    },
-    {
-      id: 4,
-      chapterId: parseInt(chapterId || '0'),
-      content: '"为什么选择现在回来？"她转过身，眼中闪烁着泪光。',
-      speaker: '女主角',
-      tone: 'sad',
-      voiceId: 'BV002',
-      speed: 0.85,
-      audioPath: '',
-      duration: 3.0,
-      orderIndex: 3,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    },
-    {
-      id: 5,
-      chapterId: parseInt(chapterId || '0'),
-      content: '"因为我知道，这里才是我的归宿。"他缓缓走进房间，每一步都像是踩在她的心上。',
-      speaker: '男主角',
-      tone: 'sad',
-      voiceId: 'BV003',
-      speed: 0.95,
-      audioPath: '',
-      duration: 4.2,
-      orderIndex: 4,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    },
-  ];
 
   useEffect(() => {
     if (chapterId) {
@@ -137,6 +78,7 @@ const ChapterEditor: React.FC = () => {
       // 加载章节信息
       const chapterData = await api.getChapter(parseInt(chapterId || '0'));
       setChapter(chapterData);
+      setChapterText(chapterData.content || '');
 
       // 加载角色列表
       if (projectId) {
@@ -148,18 +90,46 @@ const ChapterEditor: React.FC = () => {
       const voiceData = await api.getVoices();
       setVoices(voiceData);
 
-      // 模拟段落数据
-      setParagraphs(mockParagraphs);
-      calculateTotalDuration(mockParagraphs);
+      // 加载段落列表 - 从服务端读取
+      const paraData = await api.getParagraphs(parseInt(chapterId || '0'));
+      // 按 orderIndex 排序
+      const sortedParas = [...paraData].sort((a, b) => a.orderIndex - b.orderIndex);
+      setParagraphs(sortedParas);
+      calculateTotalDuration(sortedParas);
 
       // 默认选中第一个段落
-      if (mockParagraphs.length > 0) {
-        handleSelectParagraph(mockParagraphs[0].id);
+      if (sortedParas.length > 0) {
+        handleSelectParagraph(sortedParas[0].id);
       }
     } catch (error) {
       console.error('Failed to load data:', error);
     }
     setIsLoading(false);
+  };
+
+  // 打开文本编辑器
+  const handleOpenTextEditor = () => {
+    if (chapter) {
+      setChapterText(chapter.content || '');
+    }
+    setShowTextEditor(true);
+  };
+
+  // 保存章节文本
+  const handleSaveChapterText = async () => {
+    if (!chapter) return;
+
+    setIsSavingChapter(true);
+    try {
+      await api.updateChapter(chapter.id, chapter.title, chapterText);
+      setChapter(prev => prev ? { ...prev, content: chapterText } : null);
+      setShowTextEditor(false);
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 2000);
+    } catch (error) {
+      console.error('Failed to save chapter:', error);
+    }
+    setIsSavingChapter(false);
   };
 
   const calculateTotalDuration = (paras: Paragraph[]) => {
@@ -180,6 +150,11 @@ const ChapterEditor: React.FC = () => {
 
   const timelineSegments = getTimelineSegments();
 
+  // 检查段落是否有修改
+  const isParagraphDirty = (id: number): boolean => {
+    return dirtyParagraphs.has(id);
+  };
+
   // 选择段落
   const handleSelectParagraph = (id: number) => {
     setSelectedParagraphId(id);
@@ -195,8 +170,16 @@ const ChapterEditor: React.FC = () => {
     }
   };
 
-  // 保存编辑
-  const handleSaveEdit = () => {
+  // 处理表单变更 - 标记为脏但不立即保存
+  const handleFormChange = (field: string, value: any) => {
+    setEditForm({ ...editForm, [field]: value });
+    if (selectedParagraphId) {
+      setDirtyParagraphs(prev => new Set(prev).add(selectedParagraphId));
+    }
+  };
+
+  // 应用修改到本地状态（但不保存到后端）
+  const handleApplyEdit = () => {
     if (!selectedParagraphId) return;
 
     const updatedParagraphs = paragraphs.map((p) =>
@@ -207,12 +190,52 @@ const ChapterEditor: React.FC = () => {
     setParagraphs(updatedParagraphs);
   };
 
+  // 保存所有修改到后端
+  const handleSaveAll = async () => {
+    if (dirtyParagraphs.size === 0) return;
+
+    setIsSaving(true);
+    try {
+      // 逐个保存脏段落
+      for (const id of dirtyParagraphs) {
+        const paragraph = paragraphs.find(p => p.id === id);
+        if (paragraph) {
+          await api.updateParagraph(
+            paragraph.id,
+            paragraph.content,
+            paragraph.speaker,
+            paragraph.tone,
+            paragraph.voiceId,
+            paragraph.speed,
+            paragraph.audioPath,
+            paragraph.duration,
+            paragraph.orderIndex
+          );
+        }
+      }
+
+      // 清空脏状态
+      setDirtyParagraphs(new Set());
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 2000);
+    } catch (error) {
+      console.error('Failed to save paragraphs:', error);
+    }
+    setIsSaving(false);
+  };
+
   // 删除段落
   const handleDeleteParagraph = (id: number) => {
     if (!window.confirm('确定要删除此段落吗？')) return;
     const updatedParagraphs = paragraphs.filter((p) => p.id !== id);
     setParagraphs(updatedParagraphs);
     calculateTotalDuration(updatedParagraphs);
+    // 从脏状态中移除
+    setDirtyParagraphs(prev => {
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
     if (selectedParagraphId === id) {
       if (updatedParagraphs.length > 0) {
         handleSelectParagraph(updatedParagraphs[0].id);
@@ -228,10 +251,41 @@ const ChapterEditor: React.FC = () => {
     // 模拟生成音频
   };
 
-  // 批量生成音频
-  const handleGenerateAllAudio = async () => {
-    console.log('Generating all audio');
-    // 模拟批量生成
+  // 生成脚本 - 调用 splitParagraph
+  const handleGenerateScript = async () => {
+    if (!chapterId) return;
+
+    if (paragraphs.length > 0) {
+      if (!window.confirm('已存在段落，确定要重新生成吗？这将覆盖现有段落。')) {
+        return;
+      }
+    }
+
+    setIsGeneratingScript(true);
+    try {
+      // 调用 splitParagraph 方法生成并保存段落
+      const newParagraphs = await api.splitParagraph(parseInt(chapterId));
+
+      // 更新本地状态
+      const sortedParas = [...newParagraphs].sort((a, b) => a.orderIndex - b.orderIndex);
+      setParagraphs(sortedParas);
+      calculateTotalDuration(sortedParas);
+      setDirtyParagraphs(new Set());
+
+      // 默认选中第一个段落
+      if (sortedParas.length > 0) {
+        handleSelectParagraph(sortedParas[0].id);
+      } else {
+        setSelectedParagraphId(null);
+      }
+
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 2000);
+    } catch (error) {
+      console.error('Failed to generate script:', error);
+      alert('生成脚本失败：' + (error as Error).message);
+    }
+    setIsGeneratingScript(false);
   };
 
   // 播放控制
@@ -300,21 +354,42 @@ const ChapterEditor: React.FC = () => {
             <h1>{chapter.title}</h1>
             <p className="subtitle">章节编辑 · 时间轴视图</p>
           </div>
+          {dirtyParagraphs.size > 0 && (
+            <div className="dirty-indicator">
+              <AlertCircle size={14} />
+              <span>{dirtyParagraphs.size} 个未保存修改</span>
+            </div>
+          )}
+          {saveSuccess && (
+            <div className="save-success">
+              <Check size={14} />
+              <span>已保存</span>
+            </div>
+          )}
         </div>
         <div className="header-right">
           <button
             className="btn-secondary"
-            onClick={() => console.log('Import text')}
+            onClick={handleOpenTextEditor}
           >
-            <Edit2 size={16} />
+            <FileText size={16} />
             编辑文本
           </button>
           <button
-            className="btn-primary"
-            onClick={handleGenerateAllAudio}
+            className={`btn-save ${dirtyParagraphs.size > 0 ? 'dirty' : ''}`}
+            onClick={handleSaveAll}
+            disabled={dirtyParagraphs.size === 0 || isSaving}
           >
-            <Zap size={16} />
-            批量生成
+            <Save size={16} />
+            {isSaving ? '保存中...' : '保存'}
+          </button>
+          <button
+            className="btn-primary"
+            onClick={handleGenerateScript}
+            disabled={isGeneratingScript}
+          >
+            <Sparkles size={16} />
+            {isGeneratingScript ? '生成中...' : paragraphs.length > 0 ? '重新生成脚本' : '生成脚本'}
           </button>
         </div>
       </header>
@@ -357,6 +432,9 @@ const ChapterEditor: React.FC = () => {
                         <Clock size={10} />
                         {(paragraph.duration || 0).toFixed(1)}s
                       </span>
+                      {isParagraphDirty(paragraph.id) && (
+                        <span className="dirty-dot" title="有未保存的修改"></span>
+                      )}
                     </div>
                     <p className="paragraph-item-text">
                       {paragraph.content}
@@ -378,6 +456,12 @@ const ChapterEditor: React.FC = () => {
           <div className="paragraph-detail-panel">
             <div className="panel-header">
               <h2>段落详情</h2>
+              {selectedParagraphId && isParagraphDirty(selectedParagraphId) && (
+                <span className="dirty-badge">
+                  <AlertCircle size={12} />
+                  未保存
+                </span>
+              )}
             </div>
             {selectedParagraph ? (
               <div className="panel-content">
@@ -386,7 +470,7 @@ const ChapterEditor: React.FC = () => {
                   <textarea
                     value={editForm.content}
                     onChange={(e) =>
-                      setEditForm({ ...editForm, content: e.target.value })
+                      handleFormChange('content', e.target.value)
                     }
                     rows={5}
                   />
@@ -398,7 +482,7 @@ const ChapterEditor: React.FC = () => {
                     <select
                       value={editForm.speaker}
                       onChange={(e) =>
-                        setEditForm({ ...editForm, speaker: e.target.value })
+                        handleFormChange('speaker', e.target.value)
                       }
                     >
                       <option value="">旁白</option>
@@ -415,7 +499,7 @@ const ChapterEditor: React.FC = () => {
                     <select
                       value={editForm.voiceId}
                       onChange={(e) =>
-                        setEditForm({ ...editForm, voiceId: e.target.value })
+                        handleFormChange('voiceId', e.target.value)
                       }
                     >
                       <option value="">请选择音色</option>
@@ -434,7 +518,7 @@ const ChapterEditor: React.FC = () => {
                     <select
                       value={editForm.tone}
                       onChange={(e) =>
-                        setEditForm({ ...editForm, tone: e.target.value })
+                        handleFormChange('tone', e.target.value)
                       }
                     >
                       {SupportedTones.map((tone) => (
@@ -457,7 +541,7 @@ const ChapterEditor: React.FC = () => {
                       step="0.05"
                       value={editForm.speed}
                       onChange={(e) =>
-                        setEditForm({ ...editForm, speed: parseFloat(e.target.value) })
+                        handleFormChange('speed', parseFloat(e.target.value))
                       }
                     />
                     <div className="range-labels">
@@ -486,9 +570,13 @@ const ChapterEditor: React.FC = () => {
                 </div>
 
                 <div className="save-bar">
-                  <button className="btn-primary" onClick={handleSaveEdit}>
+                  <button
+                    className="btn-secondary"
+                    onClick={handleApplyEdit}
+                    disabled={!isParagraphDirty(selectedParagraph.id)}
+                  >
                     <Check size={16} />
-                    保存修改
+                    应用修改
                   </button>
                 </div>
               </div>
@@ -533,7 +621,7 @@ const ChapterEditor: React.FC = () => {
                     key={segment.id}
                     className={`timeline-clip ${
                       selectedParagraphId === segment.id ? 'selected' : ''
-                    }`}
+                    } ${isParagraphDirty(segment.id) ? 'dirty' : ''}`}
                     style={{
                       left: `${(segment.start / totalDuration) * 100}%`,
                       width: `${((segment.end - segment.start) / totalDuration) * 100}%`,
@@ -551,6 +639,11 @@ const ChapterEditor: React.FC = () => {
                         {segment.paragraph.content.length > 40 ? '...' : ''}
                       </div>
                     </div>
+                    {isParagraphDirty(segment.id) && (
+                      <div className="clip-dirty-indicator">
+                        <AlertCircle size={10} />
+                      </div>
+                    )}
                     {segment.paragraph.audioPath && (
                       <div className="clip-indicator">
                         <Music size={12} />
@@ -569,23 +662,84 @@ const ChapterEditor: React.FC = () => {
         </div>
       </div>
 
+      {/* 章节文本编辑器模态框 */}
+      {showTextEditor && (
+        <div className="text-editor-modal">
+          <div className="text-editor-content">
+            <div className="text-editor-header">
+              <div className="text-editor-title">
+                <FileText size={20} />
+                <h2>编辑章节文本</h2>
+              </div>
+              <button
+                className="modal-close"
+                onClick={() => setShowTextEditor(false)}
+                disabled={isSavingChapter}
+              >
+                <X size={24} />
+              </button>
+            </div>
+            <div className="text-editor-body">
+              <textarea
+                value={chapterText}
+                onChange={(e) => setChapterText(e.target.value)}
+                placeholder="请输入章节内容..."
+                className="chapter-textarea"
+              />
+            </div>
+            <div className="text-editor-footer">
+              <button
+                className="btn-secondary"
+                onClick={() => {
+                  setShowTextEditor(false);
+                  if (chapter) {
+                    setChapterText(chapter.content || '');
+                  }
+                }}
+                disabled={isSavingChapter}
+              >
+                取消
+              </button>
+              <button
+                className="btn-primary"
+                onClick={handleSaveChapterText}
+                disabled={isSavingChapter}
+              >
+                <Save size={16} />
+                {isSavingChapter ? '保存中...' : '保存'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <style>{`
+        * {
+          box-sizing: border-box;
+        }
+
+        html, body {
+          margin: 0;
+          padding: 0;
+          width: 100%;
+          height: 100%;
+          overflow: hidden;
+        }
+
         .chapter-editor {
           background-color: #0F1419;
           color: #ECF0F1;
-          min-height: 100vh;
+          width: 100vw;
+          height: 100vh;
           display: flex;
           flex-direction: column;
-          padding-top: 73px;
+          overflow: hidden;
         }
 
         /* 顶部导航栏 */
         .editor-header {
-          position: fixed;
-          top: 0;
-          left: 0;
-          right: 0;
-          z-index: 100;
+          flex-shrink: 0;
+          width: 100%;
           background: linear-gradient(135deg, #1A1F26 0%, #141920 100%);
           border-bottom: 1px solid #2A3442;
           box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
@@ -624,6 +778,11 @@ const ChapterEditor: React.FC = () => {
           width: 1px;
           height: 32px;
           background: linear-gradient(to bottom, transparent, #2A3442, transparent);
+          flex-shrink: 0;
+        }
+
+        .editor-header .chapter-title {
+          min-width: 0;
         }
 
         .editor-header .chapter-title h1 {
@@ -631,6 +790,9 @@ const ChapterEditor: React.FC = () => {
           font-size: 1.15rem;
           font-weight: 600;
           color: #F1F5F9;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
         }
 
         .editor-header .subtitle {
@@ -639,18 +801,84 @@ const ChapterEditor: React.FC = () => {
           color: #64748B;
         }
 
+        .dirty-indicator {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          padding: 4px 10px;
+          background: rgba(251, 191, 36, 0.15);
+          color: #FBBF24;
+          border-radius: 6px;
+          font-size: 0.8rem;
+          font-weight: 500;
+          flex-shrink: 0;
+        }
+
+        .save-success {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          padding: 4px 10px;
+          background: rgba(16, 185, 129, 0.15);
+          color: #10B981;
+          border-radius: 6px;
+          font-size: 0.8rem;
+          font-weight: 500;
+          flex-shrink: 0;
+        }
+
         .editor-header .header-right {
           display: flex;
           gap: 10px;
+          flex-shrink: 0;
         }
 
         .editor-header {
           max-width: none;
           margin: 0;
-          padding: 14px 24px;
+          padding: 12px 20px;
           display: flex;
           justify-content: space-between;
           align-items: center;
+        }
+
+        .btn-save {
+          padding: 9px 16px;
+          border: none;
+          border-radius: 8px;
+          font-size: 0.88rem;
+          font-weight: 500;
+          cursor: pointer;
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          transition: all 0.2s ease;
+          white-space: nowrap;
+          background: #2A3442;
+          color: #94A3B8;
+          border: 1px solid #3A4A5C;
+        }
+
+        .btn-save:hover:not(:disabled) {
+          background: #3A4A5C;
+          border-color: #4A5A6C;
+        }
+
+        .btn-save.dirty {
+          background: linear-gradient(135deg, #10B981 0%, #059669 100%);
+          color: white;
+          border: none;
+          box-shadow: 0 2px 8px rgba(16, 185, 129, 0.25);
+        }
+
+        .btn-save.dirty:hover:not(:disabled) {
+          transform: translateY(-1px);
+          box-shadow: 0 4px 12px rgba(16, 185, 129, 0.35);
+        }
+
+        .btn-save:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
         }
 
         /* 主编辑区域 - 上下布局 */
@@ -658,7 +886,8 @@ const ChapterEditor: React.FC = () => {
           flex: 1;
           display: flex;
           flex-direction: column;
-          height: 100vh;
+          width: 100%;
+          height: 100%;
           overflow: hidden;
         }
 
@@ -668,14 +897,16 @@ const ChapterEditor: React.FC = () => {
           display: flex;
           min-height: 0;
           border-bottom: 1px solid #2A3442;
+          width: 100%;
         }
 
         /* 下半部分 */
         .lower-section {
-          height: 280px;
+          height: 260px;
           flex-shrink: 0;
           display: flex;
           flex-direction: column;
+          width: 100%;
         }
 
         /* 面板通用 */
@@ -694,6 +925,18 @@ const ChapterEditor: React.FC = () => {
           font-size: 0.9rem;
           font-weight: 600;
           color: #CBD5E1;
+        }
+
+        .dirty-badge {
+          display: flex;
+          align-items: center;
+          gap: 4px;
+          padding: 2px 8px;
+          background: rgba(251, 191, 36, 0.15);
+          color: #FBBF24;
+          border-radius: 4px;
+          font-size: 0.75rem;
+          font-weight: 500;
         }
 
         /* 左侧段落列表面板 */
@@ -792,6 +1035,19 @@ const ChapterEditor: React.FC = () => {
           gap: 3px;
           font-size: 0.75rem;
           color: #64748B;
+        }
+
+        .dirty-dot {
+          width: 8px;
+          height: 8px;
+          border-radius: 50%;
+          background: #FBBF24;
+          animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.5; }
         }
 
         .paragraph-item-text {
@@ -999,8 +1255,13 @@ const ChapterEditor: React.FC = () => {
           border-top: 1px solid #2A3442;
         }
 
-        .save-bar .btn-primary {
+        .save-bar .btn-secondary {
           flex: 1;
+        }
+
+        .save-bar .btn-secondary:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
         }
 
         /* 时间轴面板 */
@@ -1116,6 +1377,10 @@ const ChapterEditor: React.FC = () => {
           opacity: 1;
         }
 
+        .timeline-clip.dirty {
+          box-shadow: 0 0 0 2px rgba(251, 191, 36, 0.6), 0 2px 8px rgba(0, 0, 0, 0.3);
+        }
+
         .clip-content {
           overflow: hidden;
         }
@@ -1136,6 +1401,14 @@ const ChapterEditor: React.FC = () => {
           white-space: nowrap;
           overflow: hidden;
           text-overflow: ellipsis;
+        }
+
+        .clip-dirty-indicator {
+          position: absolute;
+          top: 5px;
+          right: 6px;
+          color: #FBBF24;
+          animation: pulse 1.5s ease-in-out infinite;
         }
 
         .clip-indicator {
@@ -1204,17 +1477,6 @@ const ChapterEditor: React.FC = () => {
           border-color: #4A5A6C;
         }
 
-        /* 加载和错误状态 */
-        .loading-container,
-        .error-container {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          min-height: 100vh;
-          color: #CBD5E1;
-        }
-
         .spinner {
           width: 32px;
           height: 32px;
@@ -1228,6 +1490,130 @@ const ChapterEditor: React.FC = () => {
         @keyframes spin {
           0% { transform: rotate(0deg); }
           100% { transform: rotate(360deg); }
+        }
+
+        /* 文本编辑器模态框 */
+        .text-editor-modal {
+          position: fixed;
+          top: 0;
+          left: 0;
+          width: 100vw;
+          height: 100vh;
+          background-color: rgba(0, 0, 0, 0.85);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 1000;
+          backdrop-filter: blur(6px);
+          padding: 20px;
+          box-sizing: border-box;
+        }
+
+        .text-editor-content {
+          background: linear-gradient(145deg, #1E2A3A 0%, #151E2B 100%);
+          border-radius: 14px;
+          width: 100%;
+          max-width: 1200px;
+          height: 100%;
+          max-height: 900px;
+          border: 1px solid #2D3E54;
+          box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+          display: flex;
+          flex-direction: column;
+        }
+
+        .text-editor-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 16px 20px;
+          border-bottom: 1px solid #2D3E54;
+          flex-shrink: 0;
+        }
+
+        .text-editor-title {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          color: #E2E8F0;
+        }
+
+        .text-editor-title h2 {
+          margin: 0;
+          font-size: 1.1rem;
+          font-weight: 600;
+        }
+
+        .modal-close {
+          background: none;
+          border: none;
+          color: #94A3B8;
+          cursor: pointer;
+          padding: 0;
+          width: 32px;
+          height: 32px;
+          border-radius: 6px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: all 0.2s;
+          flex-shrink: 0;
+        }
+
+        .modal-close:hover {
+          background-color: #334155;
+          color: #E2E8F0;
+        }
+
+        .text-editor-body {
+          flex: 1;
+          padding: 20px;
+          overflow: hidden;
+          display: flex;
+          flex-direction: column;
+        }
+
+        .chapter-textarea {
+          width: 100%;
+          flex: 1;
+          padding: 16px;
+          background-color: #0F1419;
+          border: 1px solid #2A3442;
+          border-radius: 10px;
+          color: #E2E8F0;
+          font-size: 0.95rem;
+          line-height: 1.7;
+          font-family: inherit;
+          resize: none;
+          transition: all 0.2s ease;
+          box-sizing: border-box;
+        }
+
+        .chapter-textarea:focus {
+          outline: none;
+          border-color: #00A8FF;
+          box-shadow: 0 0 0 3px rgba(0, 168, 255, 0.1);
+        }
+
+        .text-editor-footer {
+          display: flex;
+          justify-content: flex-end;
+          gap: 10px;
+          padding: 14px 20px;
+          border-top: 1px solid #2D3E54;
+          flex-shrink: 0;
+        }
+
+        /* 加载和错误状态 */
+        .loading-container,
+        .error-container {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          width: 100%;
+          height: 100%;
+          color: #CBD5E1;
         }
 
         .error-container h2 {

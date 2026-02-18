@@ -9,6 +9,7 @@ type Project struct {
 	ID          int64     `json:"id"`
 	Name        string    `json:"name"`
 	Description string    `json:"description"`
+	LLMApiKey   string    `json:"llmApiKey"` // 文本大模型 API Key
 	CreatedAt   time.Time `json:"createdAt"`
 	UpdatedAt   time.Time `json:"updatedAt"`
 }

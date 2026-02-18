@@ -66,6 +66,10 @@ export function GetProject(arg1) {
   return window['go']['main']['App']['GetProject'](arg1);
 }
 
+export function GetProjectLLMApiKey(arg1) {
+  return window['go']['main']['App']['GetProjectLLMApiKey'](arg1);
+}
+
 export function GetProjects() {
   return window['go']['main']['App']['GetProjects']();
 }
@@ -78,12 +82,20 @@ export function GetVoices() {
   return window['go']['main']['App']['GetVoices']();
 }
 
+export function Log(arg1, arg2, arg3) {
+  return window['go']['main']['App']['Log'](arg1, arg2, arg3);
+}
+
 export function ReorderChapters(arg1, arg2) {
   return window['go']['main']['App']['ReorderChapters'](arg1, arg2);
 }
 
 export function SetLLMConfig(arg1, arg2, arg3) {
   return window['go']['main']['App']['SetLLMConfig'](arg1, arg2, arg3);
+}
+
+export function SetProjectLLMApiKey(arg1, arg2) {
+  return window['go']['main']['App']['SetProjectLLMApiKey'](arg1, arg2);
 }
 
 export function SplitParagraph(arg1) {

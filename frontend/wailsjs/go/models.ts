@@ -149,6 +149,7 @@ export namespace models {
 	    id: number;
 	    name: string;
 	    description: string;
+	    llmApiKey: string;
 	    // Go type: time
 	    createdAt: any;
 	    // Go type: time
@@ -163,6 +164,7 @@ export namespace models {
 	        this.id = source["id"];
 	        this.name = source["name"];
 	        this.description = source["description"];
+	        this.llmApiKey = source["llmApiKey"];
 	        this.createdAt = this.convertValues(source["createdAt"], null);
 	        this.updatedAt = this.convertValues(source["updatedAt"], null);
 	    }

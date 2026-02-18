@@ -5,6 +5,7 @@ export interface Project {
   id: number;
   name: string;
   description: string;
+  llmApiKey: string;
   createdAt: string;
   updatedAt: string;
 }

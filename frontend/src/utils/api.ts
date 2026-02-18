@@ -7,6 +7,8 @@ import {
   GetProject,
   UpdateProject,
   DeleteProject,
+  SetProjectLLMApiKey,
+  GetProjectLLMApiKey,
   CreateChapter,
   GetChapters,
   GetChapter,
@@ -20,6 +22,13 @@ import {
   DeleteCharacter,
   GetVoices,
   GetVoice,
+  CreateParagraph,
+  GetParagraphs,
+  GetParagraph,
+  UpdateParagraph,
+  DeleteParagraph,
+  SplitParagraph,
+  Log,
 } from "wailsjs/go/main/App";
 
 // 工程相关 API
@@ -73,6 +82,25 @@ export const api = {
       await DeleteProject(id);
     } catch (error) {
       console.error("Failed to delete project:", error);
+      throw error;
+    }
+  },
+
+  setProjectLLMApiKey: async (id: number, apiKey: string): Promise<void> => {
+    try {
+      await SetProjectLLMApiKey(id, apiKey);
+    } catch (error) {
+      console.error("Failed to set project LLM API key:", error);
+      throw error;
+    }
+  },
+
+  getProjectLLMApiKey: async (id: number): Promise<string> => {
+    try {
+      const result = await GetProjectLLMApiKey(id);
+      return result || "";
+    } catch (error) {
+      console.error("Failed to get project LLM API key:", error);
       throw error;
     }
   },
@@ -146,7 +174,7 @@ export const api = {
     }
   },
 
-  // 段落操作（待实现）
+  // 段落操作
   createParagraph: async (
     chapterId: number,
     content: string,
@@ -155,15 +183,33 @@ export const api = {
     voiceId: string,
     speed: number
   ): Promise<number> => {
-    throw new Error("Not implemented");
+    try {
+      const result = await CreateParagraph(chapterId, content, speaker, tone, voiceId, speed);
+      return result;
+    } catch (error) {
+      console.error("Failed to create paragraph:", error);
+      throw error;
+    }
   },
 
   getParagraphs: async (chapterId: number): Promise<any[]> => {
-    throw new Error("Not implemented");
+    try {
+      const result = await GetParagraphs(chapterId);
+      return result || [];
+    } catch (error) {
+      console.error("Failed to get paragraphs:", error);
+      throw error;
+    }
   },
 
   getParagraph: async (id: number): Promise<any> => {
-    throw new Error("Not implemented");
+    try {
+      const result = await GetParagraph(id);
+      return result;
+    } catch (error) {
+      console.error("Failed to get paragraph:", error);
+      throw error;
+    }
   },
 
   updateParagraph: async (
@@ -172,13 +218,36 @@ export const api = {
     speaker: string,
     tone: string,
     voiceId: string,
-    speed: number
+    speed: number,
+    audioPath: string = "",
+    duration: number = 0,
+    orderIndex: number = 0
   ): Promise<void> => {
-    throw new Error("Not implemented");
+    try {
+      await UpdateParagraph(id, content, speaker, tone, voiceId, speed, audioPath, duration, orderIndex);
+    } catch (error) {
+      console.error("Failed to update paragraph:", error);
+      throw error;
+    }
   },
 
   deleteParagraph: async (id: number): Promise<void> => {
-    throw new Error("Not implemented");
+    try {
+      await DeleteParagraph(id);
+    } catch (error) {
+      console.error("Failed to delete paragraph:", error);
+      throw error;
+    }
+  },
+
+  splitParagraph: async (chapterId: number): Promise<any[]> => {
+    try {
+      const result = await SplitParagraph(chapterId);
+      return result || [];
+    } catch (error) {
+      console.error("Failed to split paragraph:", error);
+      throw error;
+    }
   },
 
   // 角色操作
@@ -277,6 +346,15 @@ export const api = {
 
   generateBatchAudio: async (paragraphs: any[]): Promise<any[]> => {
     throw new Error("Not implemented");
+  },
+
+  // 日志同步
+  log: async (level: string, message: string, source: string): Promise<void> => {
+    try {
+      await Log(level, message, source);
+    } catch (error) {
+      console.error("Failed to send log to backend:", error);
+    }
   },
 };
 
