@@ -72,6 +72,22 @@ const ChapterEditor: React.FC = () => {
     }
   }, [chapterId, projectId]);
 
+  // 当选中的段落或段落列表变化时，更新 editForm
+  useEffect(() => {
+    if (selectedParagraphId && paragraphs.length > 0) {
+      const paragraph = paragraphs.find((p) => p.id === selectedParagraphId);
+      if (paragraph) {
+        setEditForm({
+          content: paragraph.content,
+          speaker: paragraph.speaker || '',
+          tone: paragraph.tone || 'neutral',
+          voiceId: paragraph.voiceId || '',
+          speed: paragraph.speed || DefSpeed,
+        });
+      }
+    }
+  }, [selectedParagraphId, paragraphs]);
+
   const loadData = async () => {
     setIsLoading(true);
     try {
