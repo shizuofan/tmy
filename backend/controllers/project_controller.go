@@ -66,3 +66,8 @@ func (c *ProjectController) GetProjectKnownCharacters(projectID int64) ([]models
 func (c *ProjectController) DeleteProjectKnownCharacter(projectID int64, characterName string) error {
 	return c.service.DeleteProjectKnownCharacter(projectID, characterName)
 }
+
+// SetKnownCharacterVoice 设置已知角色的音色
+func (c *ProjectController) SetKnownCharacterVoice(projectID int64, characterName string, voiceID string) error {
+	return c.service.SetKnownCharacterVoice(projectID, characterName, voiceID)
+}

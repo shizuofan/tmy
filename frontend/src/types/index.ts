@@ -4,6 +4,7 @@
 export interface CharacterInfo {
   name: string;
   description: string;
+  voiceId: string;
 }
 
 // 工程类型

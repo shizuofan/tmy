@@ -136,6 +136,21 @@ export const api = {
     }
   },
 
+  setKnownCharacterVoice: async (projectId: number, characterName: string, voiceId: string): Promise<void> => {
+    try {
+      // 注意：需要在 app.go 中添加对应的 Wails 绑定并重新生成
+      // 这里我们使用现有的 UpdateProjectKnownCharacters 来更新
+      const characters = await api.getProjectKnownCharacters(projectId);
+      const updatedCharacters = characters.map(c =>
+        c.name === characterName ? { ...c, voiceId } : c
+      );
+      await api.updateProjectKnownCharacters(projectId, updatedCharacters);
+    } catch (error) {
+      console.error("Failed to set known character voice:", error);
+      throw error;
+    }
+  },
+
   // 章节操作
   createChapter: async (
     projectId: number,

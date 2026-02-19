@@ -3,9 +3,10 @@ import {
   Trash2,
   Bot,
   Sparkles,
+  Volume2,
 } from 'lucide-react';
 import api from '../utils/api';
-import { CharacterInfo } from '../types';
+import { CharacterInfo, Voice } from '../types';
 
 interface RoleManagerProps {
   projectId: number;
@@ -13,22 +14,27 @@ interface RoleManagerProps {
 
 const RoleManager: React.FC<RoleManagerProps> = ({ projectId }) => {
   const [knownCharacters, setKnownCharacters] = useState<CharacterInfo[]>([]);
+  const [voices, setVoices] = useState<Voice[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  // 加载已知角色列表
+  // 加载已知角色列表和音色列表
   useEffect(() => {
     if (projectId) {
-      loadKnownCharacters();
+      loadData();
     }
   }, [projectId]);
 
-  const loadKnownCharacters = async () => {
+  const loadData = async () => {
     setIsLoading(true);
     try {
-      const data = await api.getProjectKnownCharacters(projectId);
-      setKnownCharacters(data);
+      const [charData, voiceData] = await Promise.all([
+        api.getProjectKnownCharacters(projectId),
+        api.getVoices(),
+      ]);
+      setKnownCharacters(charData);
+      setVoices(voiceData);
     } catch (error) {
-      console.error('Failed to load known characters:', error);
+      console.error('Failed to load data:', error);
     }
     setIsLoading(false);
   };
@@ -39,11 +45,33 @@ const RoleManager: React.FC<RoleManagerProps> = ({ projectId }) => {
     setIsLoading(true);
     try {
       await api.deleteProjectKnownCharacter(projectId, characterName);
-      loadKnownCharacters();
+      loadData();
     } catch (error) {
       console.error('Failed to delete known character:', error);
     }
     setIsLoading(false);
+  };
+
+  const handleVoiceChange = async (characterName: string, voiceId: string) => {
+    try {
+      // 更新本地状态
+      setKnownCharacters(prev =>
+        prev.map(c =>
+          c.name === characterName ? { ...c, voiceId } : c
+        )
+      );
+      // 保存到后端
+      await api.setKnownCharacterVoice(projectId, characterName, voiceId);
+    } catch (error) {
+      console.error('Failed to set character voice:', error);
+      // 回滚本地状态
+      loadData();
+    }
+  };
+
+  const getVoiceName = (voiceId: string): string => {
+    const voice = voices.find(v => v.id === voiceId);
+    return voice ? voice.name : '未设置';
   };
 
   return (
@@ -82,6 +110,22 @@ const RoleManager: React.FC<RoleManagerProps> = ({ projectId }) => {
                   {character.description && (
                     <p className="role-description">{character.description}</p>
                   )}
+                  <div className="voice-select-row">
+                    <Volume2 size={14} />
+                    <select
+                      className="voice-select"
+                      value={character.voiceId || ''}
+                      onChange={(e) => handleVoiceChange(character.name, e.target.value)}
+                      disabled={isLoading}
+                    >
+                      <option value="">选择音色</option>
+                      {voices.map((voice) => (
+                        <option key={voice.id} value={voice.id}>
+                          {voice.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                   <div className="known-badge">
                     <Sparkles size={12} />
                     <span>AI 识别</span>
@@ -249,6 +293,40 @@ const RoleManager: React.FC<RoleManagerProps> = ({ projectId }) => {
           display: -webkit-box;
           -webkit-line-clamp: 2;
           -webkit-box-orient: vertical;
+        }
+
+        .voice-select-row {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          margin-bottom: 8px;
+        }
+
+        .voice-select-row svg {
+          color: #00A8FF;
+          flex-shrink: 0;
+        }
+
+        .voice-select {
+          flex: 1;
+          padding: 4px 8px;
+          background-color: #151E2B;
+          border: 1px solid #2D3E54;
+          border-radius: 6px;
+          color: #E2E8F0;
+          font-size: 0.8rem;
+          cursor: pointer;
+          transition: all 0.2s ease;
+        }
+
+        .voice-select:hover {
+          border-color: #00A8FF;
+        }
+
+        .voice-select:focus {
+          outline: none;
+          border-color: #00A8FF;
+          box-shadow: 0 0 0 2px rgba(0, 168, 255, 0.2);
         }
 
         .known-badge {

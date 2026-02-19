@@ -54,7 +54,6 @@ const ChapterEditor: React.FC = () => {
     content: '',
     speaker: '',
     tone: 'neutral',
-    voiceId: '',
     speed: DefSpeed,
   });
   const [dirtyParagraphs, setDirtyParagraphs] = useState<Set<number>>(new Set());
@@ -81,7 +80,6 @@ const ChapterEditor: React.FC = () => {
           content: paragraph.content,
           speaker: paragraph.speaker || '',
           tone: paragraph.tone || 'neutral',
-          voiceId: paragraph.voiceId || '',
           speed: paragraph.speed || DefSpeed,
         });
       }
@@ -180,7 +178,6 @@ const ChapterEditor: React.FC = () => {
         content: paragraph.content,
         speaker: paragraph.speaker || '',
         tone: paragraph.tone || 'neutral',
-        voiceId: paragraph.voiceId || '',
         speed: paragraph.speed || DefSpeed,
       });
     }
@@ -200,7 +197,7 @@ const ChapterEditor: React.FC = () => {
 
     const updatedParagraphs = paragraphs.map((p) =>
       p.id === selectedParagraphId
-        ? { ...p, ...editForm }
+        ? { ...p, ...editForm, voiceId: p.voiceId } // 保留 voiceId
         : p
     );
     setParagraphs(updatedParagraphs);
@@ -493,7 +490,7 @@ const ChapterEditor: React.FC = () => {
                 </div>
 
                 <div className="form-row">
-                  <div className="form-group">
+                  <div className="form-group full-width">
                     <label>说话角色</label>
                     <select
                       value={editForm.speaker}
@@ -505,23 +502,6 @@ const ChapterEditor: React.FC = () => {
                       {characters.map((char) => (
                         <option key={char.id} value={char.name}>
                           {char.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="form-group">
-                    <label>音色</label>
-                    <select
-                      value={editForm.voiceId}
-                      onChange={(e) =>
-                        handleFormChange('voiceId', e.target.value)
-                      }
-                    >
-                      <option value="">请选择音色</option>
-                      {voices.map((voice) => (
-                        <option key={voice.id} value={voice.id}>
-                          {voice.name}
                         </option>
                       ))}
                     </select>
@@ -1110,6 +1090,10 @@ const ChapterEditor: React.FC = () => {
 
         .form-row .form-group {
           flex: 1;
+        }
+
+        .form-group.full-width {
+          flex: 1 1 100%;
         }
 
         .empty-properties {

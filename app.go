@@ -115,6 +115,11 @@ func (a *App) DeleteProjectKnownCharacter(projectID int64, characterName string)
 	return a.projectController.DeleteProjectKnownCharacter(projectID, characterName)
 }
 
+// SetKnownCharacterVoice 设置已知角色的音色
+func (a *App) SetKnownCharacterVoice(projectID int64, characterName string, voiceID string) error {
+	return a.projectController.SetKnownCharacterVoice(projectID, characterName, voiceID)
+}
+
 // ========== 章节相关方法 ==========
 
 // CreateChapter 创建章节

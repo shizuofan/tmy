@@ -19,6 +19,7 @@ type Project struct {
 type CharacterInfo struct {
 	Name        string `json:"name"`        // 角色名称
 	Description string `json:"description"` // 角色简介/关系描述
+	VoiceID     string `json:"voiceId"`     // 音色ID
 }
 
 // Chapter 章节模型

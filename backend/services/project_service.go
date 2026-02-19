@@ -301,6 +301,53 @@ func (s *ProjectService) DeleteProjectKnownCharacter(projectID int64, characterN
 	return nil
 }
 
+// SetKnownCharacterVoice 设置已知角色的音色
+func (s *ProjectService) SetKnownCharacterVoice(projectID int64, characterName string, voiceID string) error {
+	utils.Info("设置已知角色音色: projectID=%d, characterName=%s, voiceID=%s", projectID, characterName, voiceID)
+	project, err := s.repo.GetByID(projectID)
+	if err != nil {
+		utils.Error("设置角色音色失败 - 查找工程: projectID=%d, err=%v", projectID, err)
+		return err
+	}
+	if project == nil {
+		utils.Warn("设置角色音色失败 - 工程不存在: projectID=%d", projectID)
+		return nil
+	}
+
+	// 解析现有角色
+	var knownCharacters []models.CharacterInfo
+	if project.KnownCharacters != "" {
+		_ = json.Unmarshal([]byte(project.KnownCharacters), &knownCharacters)
+	}
+
+	// 更新指定角色的音色
+	found := false
+	for i, c := range knownCharacters {
+		if c.Name == characterName {
+			knownCharacters[i].VoiceID = voiceID
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		utils.Warn("设置角色音色失败 - 角色不存在: projectID=%d, characterName=%s", projectID, characterName)
+		return nil
+	}
+
+	// 序列化并保存
+	if data, err := json.Marshal(knownCharacters); err == nil {
+		project.KnownCharacters = string(data)
+		if err := s.repo.Update(project); err != nil {
+			utils.Error("设置角色音色失败: projectID=%d, err=%v", projectID, err)
+			return err
+		}
+		utils.Info("角色音色设置成功: projectID=%d, characterName=%s, voiceID=%s", projectID, characterName, voiceID)
+	}
+
+	return nil
+}
+
 func toModelsProjectList(ps []*repositories.Project) []*models.Project {
 	result := make([]*models.Project, len(ps))
 	for i, p := range ps {
