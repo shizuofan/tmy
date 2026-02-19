@@ -147,6 +147,7 @@ export namespace models {
 	export class CharacterInfo {
 	    name: string;
 	    description: string;
+	    voiceId: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new CharacterInfo(source);
@@ -156,6 +157,7 @@ export namespace models {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.name = source["name"];
 	        this.description = source["description"];
+	        this.voiceId = source["voiceId"];
 	    }
 	}
 	

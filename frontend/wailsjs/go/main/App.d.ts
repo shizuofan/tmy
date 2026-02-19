@@ -51,6 +51,8 @@ export function Log(arg1:string,arg2:string,arg3:string):Promise<void>;
 
 export function ReorderChapters(arg1:number,arg2:Array<number>):Promise<void>;
 
+export function SetKnownCharacterVoice(arg1:number,arg2:string,arg3:string):Promise<void>;
+
 export function SetLLMConfig(arg1:string,arg2:string,arg3:string):Promise<void>;
 
 export function SetProjectLLMApiKey(arg1:number,arg2:string):Promise<void>;

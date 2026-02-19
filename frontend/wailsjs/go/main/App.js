@@ -98,6 +98,10 @@ export function ReorderChapters(arg1, arg2) {
   return window['go']['main']['App']['ReorderChapters'](arg1, arg2);
 }
 
+export function SetKnownCharacterVoice(arg1, arg2, arg3) {
+  return window['go']['main']['App']['SetKnownCharacterVoice'](arg1, arg2, arg3);
+}
+
 export function SetLLMConfig(arg1, arg2, arg3) {
   return window['go']['main']['App']['SetLLMConfig'](arg1, arg2, arg3);
 }
