@@ -63,6 +63,9 @@ const ChapterEditor: React.FC = () => {
   const [chapterText, setChapterText] = useState('');
   const [isSavingChapter, setIsSavingChapter] = useState(false);
   const [isGeneratingScript, setIsGeneratingScript] = useState(false);
+  const [showSpeakerDropdown, setShowSpeakerDropdown] = useState(false);
+  const [speakerSearch, setSpeakerSearch] = useState('');
+  const speakerDropdownRef = useRef<HTMLDivElement>(null);
   const timelineRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -70,6 +73,17 @@ const ChapterEditor: React.FC = () => {
       loadData();
     }
   }, [chapterId, projectId]);
+
+  // 点击外部关闭下拉框
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (speakerDropdownRef.current && !speakerDropdownRef.current.contains(event.target as Node)) {
+        setShowSpeakerDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   // 当选中的段落或段落列表变化时，更新 editForm
   useEffect(() => {
@@ -338,6 +352,14 @@ const ChapterEditor: React.FC = () => {
     return Array.from(speakers).sort();
   };
 
+  // 获取过滤后的说话角色列表
+  const getFilteredSpeakers = (): string[] => {
+    const allSpeakers = getAllSpeakers();
+    if (!speakerSearch.trim()) return allSpeakers;
+    const searchLower = speakerSearch.toLowerCase();
+    return allSpeakers.filter(s => s.toLowerCase().includes(searchLower));
+  };
+
   const selectedParagraph = selectedParagraphId
     ? paragraphs.find((p) => p.id === selectedParagraphId)
     : null;
@@ -506,19 +528,55 @@ const ChapterEditor: React.FC = () => {
                 <div className="form-row">
                   <div className="form-group full-width">
                     <label>说话角色</label>
-                    <select
-                      value={editForm.speaker}
-                      onChange={(e) =>
-                        handleFormChange('speaker', e.target.value)
-                      }
-                    >
-                      <option value="">旁白</option>
-                      {getAllSpeakers().map((speaker) => (
-                        <option key={speaker} value={speaker}>
-                          {speaker}
-                        </option>
-                      ))}
-                    </select>
+                    <div className="speaker-select-wrapper" ref={speakerDropdownRef}>
+                      <div
+                        className="speaker-select-input"
+                        onClick={() => {
+                          setShowSpeakerDropdown(!showSpeakerDropdown);
+                          setSpeakerSearch('');
+                        }}
+                      >
+                        <span className={editForm.speaker ? '' : 'placeholder'}>
+                          {editForm.speaker || '旁白'}
+                        </span>
+                        <span className="dropdown-arrow">▼</span>
+                      </div>
+                      {showSpeakerDropdown && (
+                        <div className="speaker-dropdown">
+                          <input
+                            type="text"
+                            className="speaker-search-input"
+                            placeholder="搜索角色..."
+                            value={speakerSearch}
+                            onChange={(e) => setSpeakerSearch(e.target.value)}
+                            autoFocus
+                          />
+                          <div className="speaker-options">
+                            <div
+                              className={`speaker-option ${!editForm.speaker ? 'selected' : ''}`}
+                              onClick={() => {
+                                handleFormChange('speaker', '');
+                                setShowSpeakerDropdown(false);
+                              }}
+                            >
+                              旁白
+                            </div>
+                            {getFilteredSpeakers().map((speaker) => (
+                              <div
+                                key={speaker}
+                                className={`speaker-option ${editForm.speaker === speaker ? 'selected' : ''}`}
+                                onClick={() => {
+                                  handleFormChange('speaker', speaker);
+                                  setShowSpeakerDropdown(false);
+                                }}
+                              >
+                                {speaker}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
 
@@ -1108,6 +1166,90 @@ const ChapterEditor: React.FC = () => {
 
         .form-group.full-width {
           flex: 1 1 100%;
+        }
+
+        /* 说话角色搜索选择器 */
+        .speaker-select-wrapper {
+          position: relative;
+        }
+
+        .speaker-select-input {
+          width: 100%;
+          padding: 10px 12px;
+          background-color: #0F1419;
+          border: 1px solid #2A3442;
+          border-radius: 8px;
+          color: #E2E8F0;
+          font-size: 0.88rem;
+          cursor: pointer;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          transition: all 0.2s ease;
+        }
+
+        .speaker-select-input:hover {
+          border-color: #3A4A5C;
+        }
+
+        .speaker-select-input .placeholder {
+          color: #64748B;
+        }
+
+        .dropdown-arrow {
+          font-size: 0.7rem;
+          color: #64748B;
+        }
+
+        .speaker-dropdown {
+          position: absolute;
+          top: 100%;
+          left: 0;
+          right: 0;
+          margin-top: 4px;
+          background: #1A2432;
+          border: 1px solid #2D3E54;
+          border-radius: 8px;
+          box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+          z-index: 100;
+          overflow: hidden;
+        }
+
+        .speaker-search-input {
+          width: 100%;
+          padding: 10px 12px;
+          background-color: #0F1419;
+          border: none;
+          border-bottom: 1px solid #2D3E54;
+          color: #E2E8F0;
+          font-size: 0.88rem;
+          outline: none;
+        }
+
+        .speaker-search-input::placeholder {
+          color: #64748B;
+        }
+
+        .speaker-options {
+          max-height: 240px;
+          overflow-y: auto;
+        }
+
+        .speaker-option {
+          padding: 10px 12px;
+          color: #E2E8F0;
+          font-size: 0.88rem;
+          cursor: pointer;
+          transition: background 0.15s ease;
+        }
+
+        .speaker-option:hover {
+          background: rgba(0, 168, 255, 0.1);
+        }
+
+        .speaker-option.selected {
+          background: rgba(0, 168, 255, 0.2);
+          color: #00A8FF;
         }
 
         .empty-properties {
