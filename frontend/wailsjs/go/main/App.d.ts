@@ -19,6 +19,8 @@ export function DeleteParagraph(arg1:number):Promise<void>;
 
 export function DeleteProject(arg1:number):Promise<void>;
 
+export function DeleteProjectKnownCharacter(arg1:number,arg2:string):Promise<void>;
+
 export function GetChapter(arg1:number):Promise<models.Chapter>;
 
 export function GetChapters(arg1:number):Promise<Array<models.Chapter>>;
@@ -34,6 +36,8 @@ export function GetParagraph(arg1:number):Promise<models.Paragraph>;
 export function GetParagraphs(arg1:number):Promise<Array<models.Paragraph>>;
 
 export function GetProject(arg1:number):Promise<models.Project>;
+
+export function GetProjectKnownCharacters(arg1:number):Promise<Array<models.CharacterInfo>>;
 
 export function GetProjectLLMApiKey(arg1:number):Promise<string>;
 
@@ -62,3 +66,5 @@ export function UpdateCharacter(arg1:number,arg2:string,arg3:string,arg4:string)
 export function UpdateParagraph(arg1:number,arg2:string,arg3:string,arg4:string,arg5:string,arg6:number,arg7:string,arg8:number,arg9:number):Promise<void>;
 
 export function UpdateProject(arg1:number,arg2:string,arg3:string):Promise<void>;
+
+export function UpdateProjectKnownCharacters(arg1:number,arg2:Array<models.CharacterInfo>):Promise<void>;

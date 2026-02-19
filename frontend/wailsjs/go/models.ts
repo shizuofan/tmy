@@ -144,12 +144,27 @@ export namespace models {
 		    return a;
 		}
 	}
+	export class CharacterInfo {
+	    name: string;
+	    description: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new CharacterInfo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.description = source["description"];
+	    }
+	}
 	
 	export class Project {
 	    id: number;
 	    name: string;
 	    description: string;
 	    llmApiKey: string;
+	    knownCharacters: CharacterInfo[];
 	    // Go type: time
 	    createdAt: any;
 	    // Go type: time
@@ -165,6 +180,7 @@ export namespace models {
 	        this.name = source["name"];
 	        this.description = source["description"];
 	        this.llmApiKey = source["llmApiKey"];
+	        this.knownCharacters = this.convertValues(source["knownCharacters"], CharacterInfo);
 	        this.createdAt = this.convertValues(source["createdAt"], null);
 	        this.updatedAt = this.convertValues(source["updatedAt"], null);
 	    }

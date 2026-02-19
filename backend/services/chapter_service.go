@@ -13,6 +13,7 @@ import (
 type ChapterService struct {
 	repo           repositories.ChapterRepository
 	projectRepo    repositories.ProjectRepository
+	projectService *ProjectService
 	llmClient      *utils.LLMClient
 	llmConfig      utils.LLMConfig
 }
@@ -21,10 +22,11 @@ type ChapterService struct {
 func NewChapterService() *ChapterService {
 	config := utils.DefaultLLMConfig()
 	return &ChapterService{
-		repo:        repositories.NewChapterRepository(),
-		projectRepo: repositories.NewProjectRepository(),
-		llmClient:   utils.NewLLMClient(config),
-		llmConfig:   config,
+		repo:           repositories.NewChapterRepository(),
+		projectRepo:    repositories.NewProjectRepository(),
+		projectService: NewProjectService(),
+		llmClient:      utils.NewLLMClient(config),
+		llmConfig:      config,
 	}
 }
 
@@ -214,6 +216,23 @@ func (s *ChapterService) SplitParagraph(chapterID int64) ([]*models.Paragraph, e
 		return nil, fmt.Errorf("项目未配置 API Key，请先在项目设置中配置")
 	}
 
+	// 获取已知角色列表
+	knownCharacters, err := s.projectService.GetProjectKnownCharacters(chapter.ProjectID)
+	if err != nil {
+		utils.Warn("获取已知角色列表失败: projectID=%d, err=%v", chapter.ProjectID, err)
+		knownCharacters = []models.CharacterInfo{}
+	}
+	utils.Debug("已知角色列表: projectID=%d, count=%d", chapter.ProjectID, len(knownCharacters))
+
+	// 转换为 LLM 客户端需要的格式
+	knownCharsForPrompt := make([]utils.CharacterInfoForPrompt, len(knownCharacters))
+	for i, c := range knownCharacters {
+		knownCharsForPrompt[i] = utils.CharacterInfoForPrompt{
+			Name:        c.Name,
+			Description: c.Description,
+		}
+	}
+
 	utils.Debug("调用 LLM 拆分段落: chapterID=%d, contentLength=%d", chapterID, len(chapter.Content))
 
 	// 使用项目 API Key 和固定的 model name 创建 LLM 客户端
@@ -224,13 +243,29 @@ func (s *ChapterService) SplitParagraph(chapterID int64) ([]*models.Paragraph, e
 	}
 	llmClient := utils.NewLLMClient(config)
 
-	llmParagraphs, err := llmClient.SplitParagraph(context.Background(), chapter.Content)
+	llmResult, err := llmClient.SplitParagraph(context.Background(), chapter.Content, knownCharsForPrompt)
 	if err != nil {
 		utils.Error("LLM 拆分失败: chapterID=%d, err=%v", chapterID, err)
 		return nil, fmt.Errorf("LLM 拆分失败: %w", err)
 	}
 
-	utils.Info("LLM 拆分成功: chapterID=%d, 段落数=%d", chapterID, len(llmParagraphs))
+	utils.Info("LLM 拆分成功: chapterID=%d, 段落数=%d, 角色数=%d", chapterID, len(llmResult.Paragraphs), len(llmResult.Characters))
+
+	// 更新角色信息
+	if len(llmResult.Characters) > 0 {
+		newCharacters := make([]models.CharacterInfo, len(llmResult.Characters))
+		for i, c := range llmResult.Characters {
+			newCharacters[i] = models.CharacterInfo{
+				Name:        c.Name,
+				Description: c.Description,
+			}
+		}
+		utils.Info("发现角色: projectID=%d, count=%d", chapter.ProjectID, len(newCharacters))
+		// 更新已知角色列表
+		if err := s.projectService.UpdateProjectKnownCharacters(chapter.ProjectID, newCharacters); err != nil {
+			utils.Warn("更新已知角色列表失败: projectID=%d, err=%v", chapter.ProjectID, err)
+		}
+	}
 
 	existingParagraphs, err := s.repo.GetParagraphsByChapterID(chapterID)
 	if err == nil {
@@ -239,8 +274,8 @@ func (s *ChapterService) SplitParagraph(chapterID int64) ([]*models.Paragraph, e
 		}
 	}
 
-	result := make([]*models.Paragraph, 0, len(llmParagraphs))
-	for i, llmP := range llmParagraphs {
+	result := make([]*models.Paragraph, 0, len(llmResult.Paragraphs))
+	for i, llmP := range llmResult.Paragraphs {
 		paragraph := &repositories.Paragraph{
 			ChapterID:  chapterID,
 			Content:    llmP.Content,
@@ -267,13 +302,13 @@ func (s *ChapterService) SplitParagraphPreview(content string) ([]*models.Paragr
 		return nil, fmt.Errorf("内容为空")
 	}
 
-	llmParagraphs, err := s.llmClient.SplitParagraph(context.Background(), content)
+	llmResult, err := s.llmClient.SplitParagraph(context.Background(), content, []utils.CharacterInfoForPrompt{})
 	if err != nil {
 		return nil, fmt.Errorf("LLM 拆分失败: %w", err)
 	}
 
-	result := make([]*models.Paragraph, 0, len(llmParagraphs))
-	for i, llmP := range llmParagraphs {
+	result := make([]*models.Paragraph, 0, len(llmResult.Paragraphs))
+	for i, llmP := range llmResult.Paragraphs {
 		result = append(result, &models.Paragraph{
 			Content:    llmP.Content,
 			Speaker:    llmP.Speaker,

@@ -34,6 +34,10 @@ export function DeleteProject(arg1) {
   return window['go']['main']['App']['DeleteProject'](arg1);
 }
 
+export function DeleteProjectKnownCharacter(arg1, arg2) {
+  return window['go']['main']['App']['DeleteProjectKnownCharacter'](arg1, arg2);
+}
+
 export function GetChapter(arg1) {
   return window['go']['main']['App']['GetChapter'](arg1);
 }
@@ -64,6 +68,10 @@ export function GetParagraphs(arg1) {
 
 export function GetProject(arg1) {
   return window['go']['main']['App']['GetProject'](arg1);
+}
+
+export function GetProjectKnownCharacters(arg1) {
+  return window['go']['main']['App']['GetProjectKnownCharacters'](arg1);
 }
 
 export function GetProjectLLMApiKey(arg1) {
@@ -120,4 +128,8 @@ export function UpdateParagraph(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, 
 
 export function UpdateProject(arg1, arg2, arg3) {
   return window['go']['main']['App']['UpdateProject'](arg1, arg2, arg3);
+}
+
+export function UpdateProjectKnownCharacters(arg1, arg2) {
+  return window['go']['main']['App']['UpdateProjectKnownCharacters'](arg1, arg2);
 }

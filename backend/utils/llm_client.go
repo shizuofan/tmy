@@ -24,7 +24,8 @@ type SplitParagraphRequest struct {
 
 // SplitParagraphResponse 拆分段落响应
 type SplitParagraphResponse struct {
-	Paragraphs []LLMParagraph `json:"paragraphs"`
+	Paragraphs   []LLMParagraph `json:"paragraphs"`
+	Characters   []LLMCharacter `json:"characters"`
 }
 
 // LLMParagraph LLM 返回的段落
@@ -32,6 +33,18 @@ type LLMParagraph struct {
 	Content string `json:"content"`
 	Speaker string `json:"speaker"`
 	Tone    string `json:"tone"`
+}
+
+// LLMCharacter LLM 返回的角色信息
+type LLMCharacter struct {
+	Name        string `json:"name"`
+	Description string `json:"description"`
+}
+
+// CharacterInfoForPrompt 用于传递给提示词的角色信息
+type CharacterInfoForPrompt struct {
+	Name        string
+	Description string
 }
 
 // LLMClient LLM 客户端
@@ -68,9 +81,15 @@ func DefaultLLMConfig() LLMConfig {
 	}
 }
 
+// SplitParagraphResult 拆分段落结果
+type SplitParagraphResult struct {
+	Paragraphs []LLMParagraph
+	Characters []LLMCharacter
+}
+
 // SplitParagraph 拆分章节文本为段落
-func (c *LLMClient) SplitParagraph(ctx context.Context, content string) ([]LLMParagraph, error) {
-	Info("LLM SplitParagraph 开始: contentLength=%d", len(content))
+func (c *LLMClient) SplitParagraph(ctx context.Context, content string, knownCharacters []CharacterInfoForPrompt) (*SplitParagraphResult, error) {
+	Info("LLM SplitParagraph 开始: contentLength=%d, knownCharactersCount=%d", len(content), len(knownCharacters))
 	Debug("LLM 配置: APIKey=****%s, ModelName=%s, Endpoint=%s",
 		maskAPIKey(c.config.APIKey), c.config.ModelName, c.config.Endpoint)
 
@@ -90,7 +109,7 @@ func (c *LLMClient) SplitParagraph(ctx context.Context, content string) ([]LLMPa
 	}
 
 	// 构建提示词
-	prompt := buildSplitPrompt(content)
+	prompt := buildSplitPrompt(content, knownCharacters)
 	Debug("提示词构建完成，长度: %d", len(prompt))
 
 	// 调用 LLM
@@ -104,14 +123,14 @@ func (c *LLMClient) SplitParagraph(ctx context.Context, content string) ([]LLMPa
 	Debug("LLM 响应内容: %s", response)
 
 	// 解析响应
-	paragraphs, err := parseSplitResponse(response)
+	result, err := parseSplitResponse(response)
 	if err != nil {
 		Error("解析 LLM 响应失败: %v", err)
 		return nil, err
 	}
-	Info("LLM 响应解析成功，段落数: %d", len(paragraphs))
+	Info("LLM 响应解析成功，段落数: %d, 角色数: %d", len(result.Paragraphs), len(result.Characters))
 
-	return paragraphs, nil
+	return result, nil
 }
 
 // maskAPIKey 掩码显示 API Key
@@ -123,8 +142,32 @@ func maskAPIKey(key string) string {
 }
 
 // buildSplitPrompt 构建拆分提示词
-func buildSplitPrompt(content string) string {
-	return fmt.Sprintf(`你是一个专业的小说文本解析助手。请将以下小说文本拆分成段落，并识别每个段落的说话角色和语气。
+func buildSplitPrompt(content string, knownCharacters []CharacterInfoForPrompt) string {
+	var knownCharsStr string
+	if len(knownCharacters) > 0 {
+		var charListStr string
+		for i, c := range knownCharacters {
+			if i > 0 {
+				charListStr += "\n"
+			}
+			if c.Description != "" {
+				charListStr += fmt.Sprintf("- %s: %s", c.Name, c.Description)
+			} else {
+				charListStr += fmt.Sprintf("- %s", c.Name)
+			}
+		}
+		knownCharsStr = fmt.Sprintf(`
+
+已知角色列表（优先使用这些角色名）：
+%s
+
+注意：
+- 说话角色请优先从已知角色列表中选择
+- 如果发现新角色，请直接使用识别到的角色名
+`, charListStr)
+	}
+
+	return fmt.Sprintf(`你是一个专业的小说文本解析助手。请将以下小说文本拆分成段落，并识别每个段落的说话角色和语气。同时分析文中出现的角色信息。
 
 要求：
 1. 将文本按对话和叙述拆分成多个段落
@@ -132,6 +175,8 @@ func buildSplitPrompt(content string) string {
 3. 对于对话，识别说话角色（speaker）和语气（tone）
 4. 对于叙述性文本，speaker 留空，tone 为 "neutral"
 5. 语气可选值：neutral, happy, sad, angry, excited, fearful, surprised, disgusted
+6. 识别文中出现的所有角色，为每个角色生成简短的描述（如与主角的关系、性格特点等）
+%s
 
 请以 JSON 格式返回，格式如下：
 {
@@ -141,11 +186,17 @@ func buildSplitPrompt(content string) string {
       "speaker": "说话角色，没有则为空字符串",
       "tone": "语气，默认为 neutral"
     }
+  ],
+  "characters": [
+    {
+      "name": "角色名称",
+      "description": "角色简介：描述角色的身份、与主角的关系、性格特点等"
+    }
   ]
 }
 
 小说文本：
-%s`, content)
+%s`, knownCharsStr, content)
 }
 
 // callChat 调用聊天 API
@@ -198,7 +249,7 @@ func (c *LLMClient) callChat(ctx context.Context, prompt string) (string, error)
 }
 
 // parseSplitResponse 解析拆分响应
-func parseSplitResponse(content string) ([]LLMParagraph, error) {
+func parseSplitResponse(content string) (*SplitParagraphResult, error) {
 	// 尝试提取 JSON 部分
 	var jsonStr string
 	startIdx := -1
@@ -249,8 +300,21 @@ func parseSplitResponse(content string) ([]LLMParagraph, error) {
 
 	var response SplitParagraphResponse
 	if err := json.Unmarshal([]byte(jsonStr), &response); err != nil {
-		return nil, fmt.Errorf("解析 LLM 响应失败: %w", err)
+		// 如果解析失败，尝试只解析 paragraphs 部分（兼容旧格式）
+		var fallbackResp struct {
+			Paragraphs []LLMParagraph `json:"paragraphs"`
+		}
+		if fallbackErr := json.Unmarshal([]byte(jsonStr), &fallbackResp); fallbackErr != nil {
+			return nil, fmt.Errorf("解析 LLM 响应失败: %w", err)
+		}
+		return &SplitParagraphResult{
+			Paragraphs: fallbackResp.Paragraphs,
+			Characters: []LLMCharacter{},
+		}, nil
 	}
 
-	return response.Paragraphs, nil
+	return &SplitParagraphResult{
+		Paragraphs: response.Paragraphs,
+		Characters: response.Characters,
+	}, nil
 }

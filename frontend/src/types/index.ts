@@ -1,11 +1,18 @@
 // 类型定义文件
 
+// 角色信息（已知角色）
+export interface CharacterInfo {
+  name: string;
+  description: string;
+}
+
 // 工程类型
 export interface Project {
   id: number;
   name: string;
   description: string;
   llmApiKey: string;
+  knownCharacters: CharacterInfo[];
   createdAt: string;
   updatedAt: string;
 }

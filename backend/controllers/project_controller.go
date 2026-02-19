@@ -51,3 +51,18 @@ func (c *ProjectController) SetProjectLLMApiKey(id int64, apiKey string) error {
 func (c *ProjectController) GetProjectLLMApiKey(id int64) (string, error) {
 	return c.service.GetProjectLLMApiKey(id)
 }
+
+// UpdateProjectKnownCharacters 更新工程的已知角色列表
+func (c *ProjectController) UpdateProjectKnownCharacters(projectID int64, characters []models.CharacterInfo) error {
+	return c.service.UpdateProjectKnownCharacters(projectID, characters)
+}
+
+// GetProjectKnownCharacters 获取工程的已知角色列表
+func (c *ProjectController) GetProjectKnownCharacters(projectID int64) ([]models.CharacterInfo, error) {
+	return c.service.GetProjectKnownCharacters(projectID)
+}
+
+// DeleteProjectKnownCharacter 删除工程的指定已知角色
+func (c *ProjectController) DeleteProjectKnownCharacter(projectID int64, characterName string) error {
+	return c.service.DeleteProjectKnownCharacter(projectID, characterName)
+}

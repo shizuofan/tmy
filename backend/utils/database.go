@@ -49,6 +49,7 @@ func createTables() error {
 			name TEXT NOT NULL,
 			description TEXT,
 			llm_api_key TEXT,
+			known_characters TEXT,
 			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 		)
@@ -60,6 +61,11 @@ func createTables() error {
 	// 迁移：为现有表添加 llm_api_key 列（如果不存在）
 	if err := addLLMApiKeyColumn(); err != nil {
 		log.Printf("Failed to add llm_api_key column: %v", err)
+	}
+
+	// 迁移：为现有表添加 known_characters 列（如果不存在）
+	if err := addKnownCharactersColumn(); err != nil {
+		log.Printf("Failed to add known_characters column: %v", err)
 	}
 
 	// 创建 chapters 表
@@ -224,6 +230,29 @@ func addLLMApiKeyColumn() error {
 	}
 
 	log.Println("Added llm_api_key column to projects table")
+	return nil
+}
+
+// addKnownCharactersColumn 为 projects 表添加 known_characters 列（如果不存在）
+func addKnownCharactersColumn() error {
+	// 检查列是否已存在
+	var count int
+	err := DB.QueryRow("SELECT COUNT(*) FROM pragma_table_info('projects') WHERE name = 'known_characters'").Scan(&count)
+	if err != nil {
+		return err
+	}
+
+	if count > 0 {
+		return nil // 列已存在，跳过
+	}
+
+	// 添加新列
+	_, err = DB.Exec("ALTER TABLE projects ADD COLUMN known_characters TEXT")
+	if err != nil {
+		return err
+	}
+
+	log.Println("Added known_characters column to projects table")
 	return nil
 }
 

@@ -100,6 +100,21 @@ func (a *App) GetProjectLLMApiKey(id int64) (string, error) {
 	return a.projectController.GetProjectLLMApiKey(id)
 }
 
+// UpdateProjectKnownCharacters 更新工程的已知角色列表
+func (a *App) UpdateProjectKnownCharacters(projectID int64, characters []models.CharacterInfo) error {
+	return a.projectController.UpdateProjectKnownCharacters(projectID, characters)
+}
+
+// GetProjectKnownCharacters 获取工程的已知角色列表
+func (a *App) GetProjectKnownCharacters(projectID int64) ([]models.CharacterInfo, error) {
+	return a.projectController.GetProjectKnownCharacters(projectID)
+}
+
+// DeleteProjectKnownCharacter 删除工程的指定已知角色
+func (a *App) DeleteProjectKnownCharacter(projectID int64, characterName string) error {
+	return a.projectController.DeleteProjectKnownCharacter(projectID, characterName)
+}
+
 // ========== 章节相关方法 ==========
 
 // CreateChapter 创建章节

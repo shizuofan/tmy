@@ -91,7 +91,7 @@ tmy2/
 ### 模型转换
 
 - Repo 层使用自己的模型（`repositories.Chapter`、`repositories.Paragraph` 等）
-- Service 层负责模型转换（`toRepoXxx`、`toModelsXxx`）
+- Service 层负责模型转换（`toRepoXxx`、`toModelsXxx`）业务逻辑处理
 - Controller 和上层统一使用 `models.*` 模型
 
 ## 数据模型
@@ -397,6 +397,5 @@ CREATE TABLE voices (
 
 ## 注意事项
 
-- 依赖版本尽量使用稳定版
+- 依赖版本尽量使用稳定版,尽量不要修改现有依赖版本
 - 前端部分不要添加新依赖
-- Repo 层继续使用 repo 层模型，Controller 层和 Service 层使用 models 模型

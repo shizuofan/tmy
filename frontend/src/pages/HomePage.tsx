@@ -325,7 +325,6 @@ const HomePage: React.FC = () => {
         .project-item:hover {
           background: linear-gradient(145deg, #253345 0%, #1E2A3A 100%);
           border-color: #00A8FF;
-          transform: translateY(-1px);
           box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
         }
 

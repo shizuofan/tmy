@@ -6,12 +6,19 @@ import (
 
 // Project 工程模型
 type Project struct {
-	ID          int64     `json:"id"`
-	Name        string    `json:"name"`
-	Description string    `json:"description"`
-	LLMApiKey   string    `json:"llmApiKey"` // 文本大模型 API Key
-	CreatedAt   time.Time `json:"createdAt"`
-	UpdatedAt   time.Time `json:"updatedAt"`
+	ID              int64               `json:"id"`
+	Name            string              `json:"name"`
+	Description     string              `json:"description"`
+	LLMApiKey       string              `json:"llmApiKey"`       // 文本大模型 API Key
+	KnownCharacters []CharacterInfo     `json:"knownCharacters"` // 已知角色列表
+	CreatedAt       time.Time           `json:"createdAt"`
+	UpdatedAt       time.Time           `json:"updatedAt"`
+}
+
+// CharacterInfo 角色信息（用于已知角色列表）
+type CharacterInfo struct {
+	Name        string `json:"name"`        // 角色名称
+	Description string `json:"description"` // 角色简介/关系描述
 }
 
 // Chapter 章节模型

@@ -9,6 +9,9 @@ import {
   DeleteProject,
   SetProjectLLMApiKey,
   GetProjectLLMApiKey,
+  GetProjectKnownCharacters,
+  UpdateProjectKnownCharacters,
+  DeleteProjectKnownCharacter,
   CreateChapter,
   GetChapters,
   GetChapter,
@@ -101,6 +104,34 @@ export const api = {
       return result || "";
     } catch (error) {
       console.error("Failed to get project LLM API key:", error);
+      throw error;
+    }
+  },
+
+  getProjectKnownCharacters: async (projectId: number): Promise<any[]> => {
+    try {
+      const result = await GetProjectKnownCharacters(projectId);
+      return result || [];
+    } catch (error) {
+      console.error("Failed to get project known characters:", error);
+      throw error;
+    }
+  },
+
+  updateProjectKnownCharacters: async (projectId: number, characters: any[]): Promise<void> => {
+    try {
+      await UpdateProjectKnownCharacters(projectId, characters);
+    } catch (error) {
+      console.error("Failed to update project known characters:", error);
+      throw error;
+    }
+  },
+
+  deleteProjectKnownCharacter: async (projectId: number, characterName: string): Promise<void> => {
+    try {
+      await DeleteProjectKnownCharacter(projectId, characterName);
+    } catch (error) {
+      console.error("Failed to delete project known character:", error);
       throw error;
     }
   },

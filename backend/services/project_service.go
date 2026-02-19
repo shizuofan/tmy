@@ -1,6 +1,7 @@
 package services
 
 import (
+	"encoding/json"
 	"tmy2/backend/models"
 	"tmy2/backend/repositories"
 	"tmy2/backend/utils"
@@ -146,13 +147,20 @@ func toRepoProject(p *models.Project) *repositories.Project {
 	if p == nil {
 		return nil
 	}
+	knownCharacters := ""
+	if p.KnownCharacters != nil && len(p.KnownCharacters) > 0 {
+		if data, err := json.Marshal(p.KnownCharacters); err == nil {
+			knownCharacters = string(data)
+		}
+	}
 	return &repositories.Project{
-		ID:          p.ID,
-		Name:        p.Name,
-		Description: p.Description,
-		LLMApiKey:   p.LLMApiKey,
-		CreatedAt:   p.CreatedAt,
-		UpdatedAt:   p.UpdatedAt,
+		ID:              p.ID,
+		Name:            p.Name,
+		Description:     p.Description,
+		LLMApiKey:       p.LLMApiKey,
+		KnownCharacters: knownCharacters,
+		CreatedAt:       p.CreatedAt,
+		UpdatedAt:       p.UpdatedAt,
 	}
 }
 
@@ -160,14 +168,137 @@ func toModelsProject(p *repositories.Project) *models.Project {
 	if p == nil {
 		return nil
 	}
-	return &models.Project{
-		ID:          p.ID,
-		Name:        p.Name,
-		Description: p.Description,
-		LLMApiKey:   p.LLMApiKey,
-		CreatedAt:   p.CreatedAt,
-		UpdatedAt:   p.UpdatedAt,
+	var knownCharacters []models.CharacterInfo
+	if p.KnownCharacters != "" {
+		_ = json.Unmarshal([]byte(p.KnownCharacters), &knownCharacters)
 	}
+	return &models.Project{
+		ID:              p.ID,
+		Name:            p.Name,
+		Description:     p.Description,
+		LLMApiKey:       p.LLMApiKey,
+		KnownCharacters: knownCharacters,
+		CreatedAt:       p.CreatedAt,
+		UpdatedAt:       p.UpdatedAt,
+	}
+}
+
+// UpdateProjectKnownCharacters 更新工程的已知角色列表
+func (s *ProjectService) UpdateProjectKnownCharacters(projectID int64, characters []models.CharacterInfo) error {
+	utils.Info("更新工程已知角色: projectID=%d, count=%d", projectID, len(characters))
+	project, err := s.repo.GetByID(projectID)
+	if err != nil {
+		utils.Error("更新已知角色失败 - 查找工程: projectID=%d, err=%v", projectID, err)
+		return err
+	}
+	if project == nil {
+		utils.Warn("更新已知角色失败 - 工程不存在: projectID=%d", projectID)
+		return nil
+	}
+
+	// 合并现有角色和新角色，去重
+	var existingCharacters []models.CharacterInfo
+	if project.KnownCharacters != "" {
+		_ = json.Unmarshal([]byte(project.KnownCharacters), &existingCharacters)
+	}
+
+	// 合并并去重
+	charMap := make(map[string]models.CharacterInfo)
+	for _, c := range existingCharacters {
+		if c.Name != "" {
+			charMap[c.Name] = c
+		}
+	}
+	for _, c := range characters {
+		if c.Name != "" {
+			if existing, ok := charMap[c.Name]; ok {
+				// 如果已有简介，保留；如果新简介不为空则更新
+				if c.Description != "" {
+					existing.Description = c.Description
+					charMap[c.Name] = existing
+				}
+			} else {
+				charMap[c.Name] = c
+			}
+		}
+	}
+
+	// 转换回数组
+	mergedCharacters := make([]models.CharacterInfo, 0, len(charMap))
+	for _, c := range charMap {
+		mergedCharacters = append(mergedCharacters, c)
+	}
+
+	// 序列化并保存
+	if data, err := json.Marshal(mergedCharacters); err == nil {
+		project.KnownCharacters = string(data)
+		if err := s.repo.Update(project); err != nil {
+			utils.Error("更新已知角色失败: projectID=%d, err=%v", projectID, err)
+			return err
+		}
+		utils.Info("已知角色更新成功: projectID=%d, count=%d", projectID, len(mergedCharacters))
+	}
+
+	return nil
+}
+
+// GetProjectKnownCharacters 获取工程的已知角色列表
+func (s *ProjectService) GetProjectKnownCharacters(projectID int64) ([]models.CharacterInfo, error) {
+	utils.Debug("获取工程已知角色: projectID=%d", projectID)
+	project, err := s.repo.GetByID(projectID)
+	if err != nil {
+		utils.Error("获取已知角色失败: projectID=%d, err=%v", projectID, err)
+		return nil, err
+	}
+	if project == nil {
+		return nil, nil
+	}
+
+	var knownCharacters []models.CharacterInfo
+	if project.KnownCharacters != "" {
+		_ = json.Unmarshal([]byte(project.KnownCharacters), &knownCharacters)
+	}
+	return knownCharacters, nil
+}
+
+// DeleteProjectKnownCharacter 删除工程的指定已知角色
+func (s *ProjectService) DeleteProjectKnownCharacter(projectID int64, characterName string) error {
+	utils.Info("删除工程已知角色: projectID=%d, characterName=%s", projectID, characterName)
+	project, err := s.repo.GetByID(projectID)
+	if err != nil {
+		utils.Error("删除已知角色失败 - 查找工程: projectID=%d, err=%v", projectID, err)
+		return err
+	}
+	if project == nil {
+		utils.Warn("删除已知角色失败 - 工程不存在: projectID=%d", projectID)
+		return nil
+	}
+
+	// 解析现有角色
+	var knownCharacters []models.CharacterInfo
+	if project.KnownCharacters != "" {
+		_ = json.Unmarshal([]byte(project.KnownCharacters), &knownCharacters)
+	}
+
+	// 过滤掉要删除的角色
+	filteredCharacters := make([]models.CharacterInfo, 0, len(knownCharacters))
+	for _, c := range knownCharacters {
+		if c.Name != characterName {
+			filteredCharacters = append(filteredCharacters, c)
+		}
+	}
+
+	// 序列化并保存
+	if data, err := json.Marshal(filteredCharacters); err == nil {
+		project.KnownCharacters = string(data)
+		if err := s.repo.Update(project); err != nil {
+			utils.Error("删除已知角色失败: projectID=%d, err=%v", projectID, err)
+			return err
+		}
+		utils.Info("已知角色删除成功: projectID=%d, characterName=%s", projectID, characterName)
+	}
+
+	return nil
 }
 
 func toModelsProjectList(ps []*repositories.Project) []*models.Project {
