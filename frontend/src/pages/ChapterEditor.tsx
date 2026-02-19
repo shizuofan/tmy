@@ -25,7 +25,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import api from '../utils/api';
-import { Chapter, Paragraph, Character, Voice, SupportedTones, DefSpeed } from '../types';
+import { Chapter, Paragraph, CharacterInfo, Voice, SupportedTones, DefSpeed } from '../types';
 
 interface TimelineSegment {
   id: number;
@@ -43,7 +43,7 @@ const ChapterEditor: React.FC = () => {
   const navigate = useNavigate();
   const [chapter, setChapter] = useState<Chapter | null>(null);
   const [paragraphs, setParagraphs] = useState<Paragraph[]>([]);
-  const [characters, setCharacters] = useState<Character[]>([]);
+  const [knownCharacters, setKnownCharacters] = useState<CharacterInfo[]>([]);
   const [voices, setVoices] = useState<Voice[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedParagraphId, setSelectedParagraphId] = useState<number | null>(null);
@@ -94,10 +94,10 @@ const ChapterEditor: React.FC = () => {
       setChapter(chapterData);
       setChapterText(chapterData.content || '');
 
-      // 加载角色列表
+      // 加载已知角色列表
       if (projectId) {
-        const charData = await api.getCharacters(parseInt(projectId));
-        setCharacters(charData);
+        const charData = await api.getProjectKnownCharacters(parseInt(projectId));
+        setKnownCharacters(charData);
       }
 
       // 加载音色列表
@@ -324,6 +324,20 @@ const ChapterEditor: React.FC = () => {
     return colors[speaker] || '#95A5A6';
   };
 
+  // 获取所有说话角色（已知角色 + 段落中出现的角色）
+  const getAllSpeakers = (): string[] => {
+    const speakers = new Set<string>();
+    // 添加已知角色
+    knownCharacters.forEach((c) => {
+      if (c.name) speakers.add(c.name);
+    });
+    // 添加段落中已有的角色
+    paragraphs.forEach((p) => {
+      if (p.speaker) speakers.add(p.speaker);
+    });
+    return Array.from(speakers).sort();
+  };
+
   const selectedParagraph = selectedParagraphId
     ? paragraphs.find((p) => p.id === selectedParagraphId)
     : null;
@@ -499,9 +513,9 @@ const ChapterEditor: React.FC = () => {
                       }
                     >
                       <option value="">旁白</option>
-                      {characters.map((char) => (
-                        <option key={char.id} value={char.name}>
-                          {char.name}
+                      {getAllSpeakers().map((speaker) => (
+                        <option key={speaker} value={speaker}>
+                          {speaker}
                         </option>
                       ))}
                     </select>
