@@ -9,6 +9,9 @@ const HomePage: React.FC = () => {
   const [projects, setProjects] = useState<Project[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [projectToDelete, setProjectToDelete] = useState<Project | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const [newProject, setNewProject] = useState({ name: '', description: '' });
 
   // 加载工程列表
@@ -44,18 +47,35 @@ const HomePage: React.FC = () => {
     setIsLoading(false);
   };
 
-  // 删除工程
-  const handleDeleteProject = async (id: number) => {
-    if (!window.confirm('确定要删除此工程吗？')) return;
+  // 显示删除确认对话框
+  const showDeleteConfirm = (project: Project) => {
+    setProjectToDelete(project);
+    setShowDeleteModal(true);
+  };
+
+  // 确认删除工程
+  const confirmDeleteProject = async () => {
+    if (!projectToDelete) return;
 
     setIsLoading(true);
+    setDeleteError(null);
     try {
-      await api.deleteProject(id);
+      await api.deleteProject(projectToDelete.id);
+      setShowDeleteModal(false);
+      setProjectToDelete(null);
       loadProjects();
     } catch (error) {
       console.error('Failed to delete project:', error);
+      setDeleteError('删除失败，请重试');
     }
     setIsLoading(false);
+  };
+
+  // 取消删除
+  const cancelDeleteProject = () => {
+    setShowDeleteModal(false);
+    setProjectToDelete(null);
+    setDeleteError(null);
   };
 
   // 跳转到项目详情页
@@ -131,7 +151,7 @@ const HomePage: React.FC = () => {
                     className="btn-danger"
                     onClick={(e) => {
                       e.stopPropagation();
-                      handleDeleteProject(project.id);
+                      showDeleteConfirm(project);
                     }}
                     disabled={isLoading}
                   >
@@ -198,6 +218,56 @@ const HomePage: React.FC = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* 删除确认模态框 */}
+      {showDeleteModal && projectToDelete && (
+        <div className="modal">
+          <div className="modal-content delete-modal">
+            <div className="modal-header">
+              <h2>删除工程</h2>
+              <button
+                className="modal-close"
+                onClick={cancelDeleteProject}
+              >
+                &times;
+              </button>
+            </div>
+            <div className="delete-warning">
+              <div className="warning-icon">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none">
+                  <path d="M12 9V13M12 17H12.01M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" stroke="#EF4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </div>
+              <h3>确定要删除该工程吗？</h3>
+              <p className="project-name-highlight">{projectToDelete.name}</p>
+              <p className="delete-warning-text">
+                此操作无法撤销，工程下的所有章节、段落和角色数据都将被永久删除。
+              </p>
+              {deleteError && (
+                <p className="delete-error-message">{deleteError}</p>
+              )}
+            </div>
+            <div className="modal-footer">
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={cancelDeleteProject}
+                disabled={isLoading}
+              >
+                取消
+              </button>
+              <button
+                type="button"
+                className="btn-danger"
+                onClick={confirmDeleteProject}
+                disabled={isLoading}
+              >
+                {isLoading ? '删除中...' : '确认删除'}
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -612,6 +682,57 @@ const HomePage: React.FC = () => {
           padding: 14px 20px;
           border-top: 1px solid #2D3E54;
           flex-shrink: 0;
+        }
+
+        .delete-modal .modal-content {
+          max-width: 460px;
+        }
+
+        .delete-warning {
+          padding: 20px;
+          text-align: center;
+        }
+
+        .warning-icon {
+          margin-bottom: 16px;
+          display: flex;
+          justify-content: center;
+        }
+
+        .warning-icon svg {
+          color: #EF4444;
+        }
+
+        .delete-warning h3 {
+          margin: 0 0 8px 0;
+          color: #E2E8F0;
+          font-size: 1.1rem;
+          font-weight: 600;
+        }
+
+        .project-name-highlight {
+          margin: 0 0 12px 0;
+          color: #00A8FF;
+          font-size: 1rem;
+          font-weight: 600;
+          word-break: break-all;
+        }
+
+        .delete-warning-text {
+          margin: 0;
+          color: #94A3B8;
+          font-size: 0.9rem;
+          line-height: 1.6;
+        }
+
+        .delete-error-message {
+          margin: 16px 0 0 0;
+          color: #EF4444;
+          font-size: 0.85rem;
+          background: rgba(239, 68, 68, 0.1);
+          padding: 10px 14px;
+          border-radius: 8px;
+          border: 1px solid rgba(239, 68, 68, 0.3);
         }
       `}</style>
     </div>

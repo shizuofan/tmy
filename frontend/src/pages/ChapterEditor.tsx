@@ -18,8 +18,8 @@ import {
   Clock,
   Edit2,
   X,
-  Check,
   Save,
+  Check,
   AlertCircle,
   FileText,
   Sparkles,
@@ -43,6 +43,7 @@ const ChapterEditor: React.FC = () => {
   const navigate = useNavigate();
   const [chapter, setChapter] = useState<Chapter | null>(null);
   const [paragraphs, setParagraphs] = useState<Paragraph[]>([]);
+  const [originalParagraphs, setOriginalParagraphs] = useState<Paragraph[]>([]);
   const [knownCharacters, setKnownCharacters] = useState<CharacterInfo[]>([]);
   const [voices, setVoices] = useState<Voice[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -123,6 +124,7 @@ const ChapterEditor: React.FC = () => {
       // 按 orderIndex 排序
       const sortedParas = [...paraData].sort((a, b) => a.orderIndex - b.orderIndex);
       setParagraphs(sortedParas);
+      setOriginalParagraphs(sortedParas);
       calculateTotalDuration(sortedParas);
 
       // 默认选中第一个段落
@@ -185,6 +187,13 @@ const ChapterEditor: React.FC = () => {
 
   // 选择段落
   const handleSelectParagraph = (id: number) => {
+    // 如果选中的是同一个段落，不做处理
+    if (id === selectedParagraphId) return;
+
+    // 先应用当前编辑的修改到段落列表
+    applyCurrentEdit();
+
+    // 切换到新段落
     setSelectedParagraphId(id);
     const paragraph = paragraphs.find((p) => p.id === id);
     if (paragraph) {
@@ -197,24 +206,24 @@ const ChapterEditor: React.FC = () => {
     }
   };
 
-  // 处理表单变更 - 标记为脏但不立即保存
+  // 应用当前编辑到段落列表
+  const applyCurrentEdit = () => {
+    if (selectedParagraphId) {
+      const updatedParagraphs = paragraphs.map((p) =>
+        p.id === selectedParagraphId
+          ? { ...p, ...editForm, voiceId: p.voiceId } // 保留 voiceId
+          : p
+      );
+      setParagraphs(updatedParagraphs);
+    }
+  };
+
+  // 处理表单变更 - 只更新表单状态并标记为脏
   const handleFormChange = (field: string, value: any) => {
     setEditForm({ ...editForm, [field]: value });
     if (selectedParagraphId) {
       setDirtyParagraphs(prev => new Set(prev).add(selectedParagraphId));
     }
-  };
-
-  // 应用修改到本地状态（但不保存到后端）
-  const handleApplyEdit = () => {
-    if (!selectedParagraphId) return;
-
-    const updatedParagraphs = paragraphs.map((p) =>
-      p.id === selectedParagraphId
-        ? { ...p, ...editForm, voiceId: p.voiceId } // 保留 voiceId
-        : p
-    );
-    setParagraphs(updatedParagraphs);
   };
 
   // 保存所有修改到后端
@@ -223,6 +232,9 @@ const ChapterEditor: React.FC = () => {
 
     setIsSaving(true);
     try {
+      // 先应用当前正在编辑的段落的修改
+      applyCurrentEdit();
+
       // 逐个保存脏段落
       for (const id of dirtyParagraphs) {
         const paragraph = paragraphs.find(p => p.id === id);
@@ -243,12 +255,40 @@ const ChapterEditor: React.FC = () => {
 
       // 清空脏状态
       setDirtyParagraphs(new Set());
+      // 更新原始段落数据
+      setOriginalParagraphs(paragraphs);
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 2000);
     } catch (error) {
       console.error('Failed to save paragraphs:', error);
     }
     setIsSaving(false);
+  };
+
+  // 撤销所有未保存的修改
+  const handleUndoAll = () => {
+    // 恢复原始段落数据
+    setParagraphs(originalParagraphs);
+    calculateTotalDuration(originalParagraphs);
+    // 清空脏状态
+    setDirtyParagraphs(new Set());
+    // 如果有选中的段落，重新加载其表单
+    if (selectedParagraphId) {
+      const paragraph = originalParagraphs.find((p) => p.id === selectedParagraphId);
+      if (paragraph) {
+        setEditForm({
+          content: paragraph.content,
+          speaker: paragraph.speaker || '',
+          tone: paragraph.tone || 'neutral',
+          speed: paragraph.speed || DefSpeed,
+        });
+      } else if (originalParagraphs.length > 0) {
+        // 如果原来选中的段落不存在了，选中第一个
+        handleSelectParagraph(originalParagraphs[0].id);
+      } else {
+        setSelectedParagraphId(null);
+      }
+    }
   };
 
   // 删除段落
@@ -296,6 +336,7 @@ const ChapterEditor: React.FC = () => {
       // 更新本地状态
       const sortedParas = [...newParagraphs].sort((a, b) => a.orderIndex - b.orderIndex);
       setParagraphs(sortedParas);
+      setOriginalParagraphs(sortedParas);
       calculateTotalDuration(sortedParas);
       setDirtyParagraphs(new Set());
 
@@ -404,9 +445,19 @@ const ChapterEditor: React.FC = () => {
             <p className="subtitle">章节编辑 · 时间轴视图</p>
           </div>
           {dirtyParagraphs.size > 0 && (
-            <div className="dirty-indicator">
-              <AlertCircle size={14} />
-              <span>{dirtyParagraphs.size} 个未保存修改</span>
+            <div className="dirty-indicator-wrapper">
+              <div className="dirty-indicator">
+                <AlertCircle size={14} />
+                <span>{dirtyParagraphs.size} 个未保存修改</span>
+              </div>
+              <button
+                className="undo-btn"
+                onClick={handleUndoAll}
+                disabled={isSaving}
+              >
+                <X size={14} />
+                撤销
+              </button>
             </div>
           )}
           {saveSuccess && (
@@ -636,17 +687,6 @@ const ChapterEditor: React.FC = () => {
                     删除
                   </button>
                 </div>
-
-                <div className="save-bar">
-                  <button
-                    className="btn-secondary"
-                    onClick={handleApplyEdit}
-                    disabled={!isParagraphDirty(selectedParagraph.id)}
-                  >
-                    <Check size={16} />
-                    应用修改
-                  </button>
-                </div>
               </div>
             ) : (
               <div className="empty-properties">
@@ -869,6 +909,13 @@ const ChapterEditor: React.FC = () => {
           color: #64748B;
         }
 
+        .dirty-indicator-wrapper {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          flex-shrink: 0;
+        }
+
         .dirty-indicator {
           display: flex;
           align-items: center;
@@ -880,6 +927,33 @@ const ChapterEditor: React.FC = () => {
           font-size: 0.8rem;
           font-weight: 500;
           flex-shrink: 0;
+        }
+
+        .undo-btn {
+          display: flex;
+          align-items: center;
+          gap: 4px;
+          padding: 4px 10px;
+          background: rgba(148, 163, 184, 0.15);
+          color: #94A3B8;
+          border-radius: 6px;
+          font-size: 0.8rem;
+          font-weight: 500;
+          border: 1px solid rgba(148, 163, 184, 0.2);
+          cursor: pointer;
+          transition: all 0.2s ease;
+          flex-shrink: 0;
+        }
+
+        .undo-btn:hover:not(:disabled) {
+          background: rgba(148, 163, 184, 0.25);
+          border-color: rgba(148, 163, 184, 0.4);
+          color: #E2E8F0;
+        }
+
+        .undo-btn:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
         }
 
         .save-success {
@@ -1402,22 +1476,6 @@ const ChapterEditor: React.FC = () => {
 
         .btn-delete:hover {
           background: rgba(239, 68, 68, 0.25);
-        }
-
-        .save-bar {
-          display: flex;
-          gap: 10px;
-          padding-top: 14px;
-          border-top: 1px solid #2A3442;
-        }
-
-        .save-bar .btn-secondary {
-          flex: 1;
-        }
-
-        .save-bar .btn-secondary:disabled {
-          opacity: 0.5;
-          cursor: not-allowed;
         }
 
         /* 时间轴面板 */

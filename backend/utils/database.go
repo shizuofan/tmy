@@ -32,6 +32,12 @@ func InitDB() error {
 		return err
 	}
 
+	// 启用外键约束
+	_, err = DB.Exec("PRAGMA foreign_keys = ON")
+	if err != nil {
+		log.Printf("Failed to enable foreign keys: %v", err)
+	}
+
 	// 创建表
 	if err := createTables(); err != nil {
 		return err
