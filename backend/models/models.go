@@ -6,13 +6,15 @@ import (
 
 // Project 工程模型
 type Project struct {
-	ID              int64               `json:"id"`
-	Name            string              `json:"name"`
-	Description     string              `json:"description"`
-	LLMApiKey       string              `json:"llmApiKey"`       // 文本大模型 API Key
-	KnownCharacters []CharacterInfo     `json:"knownCharacters"` // 已知角色列表
-	CreatedAt       time.Time           `json:"createdAt"`
-	UpdatedAt       time.Time           `json:"updatedAt"`
+	ID               int64               `json:"id"`
+	Name             string              `json:"name"`
+	Description      string              `json:"description"`
+	LLMApiKey        string              `json:"llmApiKey"`        // 文本大模型 API Key
+	TTSApiKey        string              `json:"ttsApiKey"`        // 语音大模型 API Key
+	KnownCharacters  []CharacterInfo     `json:"knownCharacters"`  // 已知角色列表
+	NarratorVoiceID  string              `json:"narratorVoiceId"`  // 旁白音色ID
+	CreatedAt        time.Time           `json:"createdAt"`
+	UpdatedAt        time.Time           `json:"updatedAt"`
 }
 
 // CharacterInfo 角色信息（用于已知角色列表）
@@ -70,17 +72,129 @@ type Voice struct {
 	Language       string   `json:"language"`
 }
 
-// 情感类型常量
+// 情感类型常量 - 中文音色
 const (
-	ToneNeutral   = "neutral"   // 中性
-	ToneHappy     = "happy"     // 开心
-	ToneSad       = "sad"       // 悲伤
-	ToneAngry     = "angry"     // 愤怒
-	ToneExcited   = "excited"   // 兴奋
-	ToneFearful   = "fearful"   // 恐惧
-	ToneSurprised = "surprised" // 惊讶
-	ToneDisgusted = "disgusted" // 厌恶
+	ToneNeutral      = "neutral"      // 中性
+	ToneHappy        = "happy"        // 开心
+	ToneSad          = "sad"          // 悲伤
+	ToneAngry        = "angry"        // 生气
+	ToneSurprised    = "surprised"    // 惊讶
+	ToneFear         = "fear"         // 恐惧
+	ToneHate         = "hate"         // 厌恶
+	ToneExcited      = "excited"      // 激动
+	ToneColdness     = "coldness"     // 冷漠
+	ToneDepressed    = "depressed"    // 沮丧
+	ToneLoveyDovey   = "lovey-dovey"  // 撒娇
+	ToneShy          = "shy"          // 害羞
+	ToneComfort      = "comfort"      // 安慰鼓励
+	ToneTension      = "tension"      // 咆哮/焦急
+	ToneTender       = "tender"       // 温柔
+	ToneStorytelling = "storytelling" // 讲故事/自然讲述
+	ToneRadio        = "radio"        // 情感电台
+	ToneMagnetic     = "magnetic"     // 磁性
+	ToneAdvertising  = "advertising"  // 广告营销
+	ToneVocalFry     = "vocal-fry"    // 气泡音
+	ToneASMR         = "ASMR"         // 低语(ASMR)
+	ToneNews         = "news"         // 新闻播报
+	ToneEntertainment = "entertainment" // 娱乐八卦
+	ToneDialect      = "dialect"      // 方言
 )
+
+// 情感类型常量 - 英文音色
+const (
+	ToneENNeutral     = "neutral"      // 中性
+	ToneENHappy       = "happy"        // 愉悦
+	ToneENAngry       = "angry"        // 愤怒
+	ToneENSad         = "sad"          // 悲伤
+	ToneENExcited     = "excited"      // 兴奋
+	ToneENChat        = "chat"         // 对话/闲聊
+	ToneENASMR        = "ASMR"         // 低语(ASMR)
+	ToneENWarm        = "warm"         // 温暖
+	ToneENAffectionate = "affectionate" // 深情
+	ToneENAuthoritative = "authoritative" // 权威
+)
+
+// 获取所有中文情感参数列表
+func GetAllChineseTones() []string {
+	return []string{
+		ToneNeutral,
+		ToneHappy,
+		ToneSad,
+		ToneAngry,
+		ToneSurprised,
+		ToneFear,
+		ToneHate,
+		ToneExcited,
+		ToneColdness,
+		ToneDepressed,
+		ToneLoveyDovey,
+		ToneShy,
+		ToneComfort,
+		ToneTension,
+		ToneTender,
+		ToneStorytelling,
+		ToneRadio,
+		ToneMagnetic,
+		ToneAdvertising,
+		ToneVocalFry,
+		ToneASMR,
+		ToneNews,
+		ToneEntertainment,
+		ToneDialect,
+	}
+}
+
+// 获取所有英文情感参数列表
+func GetAllEnglishTones() []string {
+	return []string{
+		ToneENNeutral,
+		ToneENHappy,
+		ToneENAngry,
+		ToneENSad,
+		ToneENExcited,
+		ToneENChat,
+		ToneENASMR,
+		ToneENWarm,
+		ToneENAffectionate,
+		ToneENAuthoritative,
+	}
+}
+
+// 获取情感参数的中文名称映射
+func GetToneNameMap() map[string]string {
+	return map[string]string{
+		// 中文情感
+		ToneNeutral:      "中性",
+		ToneHappy:        "开心",
+		ToneSad:          "悲伤",
+		ToneAngry:        "生气",
+		ToneSurprised:    "惊讶",
+		ToneFear:         "恐惧",
+		ToneHate:         "厌恶",
+		ToneExcited:      "激动",
+		ToneColdness:     "冷漠",
+		ToneDepressed:    "沮丧",
+		ToneLoveyDovey:   "撒娇",
+		ToneShy:          "害羞",
+		ToneComfort:      "安慰鼓励",
+		ToneTension:      "咆哮/焦急",
+		ToneTender:       "温柔",
+		ToneStorytelling: "讲故事/自然讲述",
+		ToneRadio:        "情感电台",
+		ToneMagnetic:     "磁性",
+		ToneAdvertising:  "广告营销",
+		ToneVocalFry:     "气泡音",
+		ToneASMR:         "低语(ASMR)",
+		ToneNews:         "新闻播报",
+		ToneEntertainment: "娱乐八卦",
+		ToneDialect:      "方言",
+		// 英文情感
+		ToneENChat:        "对话/闲聊",
+		ToneENWarm:        "温暖",
+		ToneENAffectionate: "深情",
+		ToneENAuthoritative: "权威",
+	}
+}
 
 // 支持的语速范围 (0.5-2.0 倍速)
 const (

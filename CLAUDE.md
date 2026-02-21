@@ -400,3 +400,14 @@ CREATE TABLE voices (
 - 依赖版本尽量使用稳定版,尽量不要修改现有依赖版本
 - 前端部分不要添加新依赖
 - 不需要cluade提交git
+
+## 前端 TypeScript 常见问题
+
+### 1. 不要使用 NodeJS 命名空间
+
+**问题**: 在前端代码中使用 `NodeJS.*` 等类型会导致编译错误:
+```
+Cannot find namespace 'NodeJS'
+```
+**原因**: 前端项目运行在浏览器环境，tsconfig.json 中只包含了 DOM 相关类型，没有 Node.js 类型。
+```

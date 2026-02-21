@@ -83,28 +83,69 @@ func (s *ProjectService) UpdateProject(id int64, name, description string) error
 
 // SetProjectLLMApiKey 设置工程的 LLM API Key
 func (s *ProjectService) SetProjectLLMApiKey(id int64, apiKey string) error {
-	utils.Info("设置工程 API Key: id=%d", id)
+	utils.Info("设置工程 LLM API Key: id=%d", id)
 	project, err := s.repo.GetByID(id)
 	if err != nil {
-		utils.Error("设置 API Key 失败 - 查找工程: id=%d, err=%v", id, err)
+		utils.Error("设置 LLM API Key 失败 - 查找工程: id=%d, err=%v", id, err)
 		return err
 	}
 	if project == nil {
-		utils.Warn("设置 API Key 失败 - 工程不存在: id=%d", id)
+		utils.Warn("设置 LLM API Key 失败 - 工程不存在: id=%d", id)
 		return nil
 	}
 
 	// 只记录 API Key 前4位和后4位用于调试
 	maskedKey := maskApiKey(apiKey)
-	utils.Debug("设置 API Key: id=%d, key=%s", id, maskedKey)
+	utils.Debug("设置 LLM API Key: id=%d, key=%s", id, maskedKey)
 
 	project.LLMApiKey = apiKey
 	if err := s.repo.Update(project); err != nil {
-		utils.Error("设置 API Key 失败: id=%d, err=%v", id, err)
+		utils.Error("设置 LLM API Key 失败: id=%d, err=%v", id, err)
 		return err
 	}
-	utils.Info("API Key 设置成功: id=%d", id)
+	utils.Info("LLM API Key 设置成功: id=%d", id)
 	return nil
+}
+
+// SetProjectTTSApiKey 设置工程的 TTS API Key
+func (s *ProjectService) SetProjectTTSApiKey(id int64, apiKey string) error {
+	utils.Info("设置工程 TTS API Key: id=%d", id)
+	project, err := s.repo.GetByID(id)
+	if err != nil {
+		utils.Error("设置 TTS API Key 失败 - 查找工程: id=%d, err=%v", id, err)
+		return err
+	}
+	if project == nil {
+		utils.Warn("设置 TTS API Key 失败 - 工程不存在: id=%d", id)
+		return nil
+	}
+
+	// 只记录 API Key 前4位和后4位用于调试
+	maskedKey := maskApiKey(apiKey)
+	utils.Debug("设置 TTS API Key: id=%d, key=%s", id, maskedKey)
+
+	project.TTSApiKey = apiKey
+	if err := s.repo.Update(project); err != nil {
+		utils.Error("设置 TTS API Key 失败: id=%d, err=%v", id, err)
+		return err
+	}
+	utils.Info("TTS API Key 设置成功: id=%d", id)
+	return nil
+}
+
+// GetProjectTTSApiKey 获取工程的 TTS API Key
+func (s *ProjectService) GetProjectTTSApiKey(id int64) (string, error) {
+	utils.Debug("获取工程 TTS API Key: id=%d", id)
+	project, err := s.repo.GetByID(id)
+	if err != nil {
+		utils.Error("获取 TTS API Key 失败: id=%d, err=%v", id, err)
+		return "", err
+	}
+	if project == nil {
+		return "", nil
+	}
+
+	return project.TTSApiKey, nil
 }
 
 // maskApiKey 掩码显示 API Key
@@ -154,13 +195,15 @@ func toRepoProject(p *models.Project) *repositories.Project {
 		}
 	}
 	return &repositories.Project{
-		ID:              p.ID,
-		Name:            p.Name,
-		Description:     p.Description,
-		LLMApiKey:       p.LLMApiKey,
-		KnownCharacters: knownCharacters,
-		CreatedAt:       p.CreatedAt,
-		UpdatedAt:       p.UpdatedAt,
+		ID:               p.ID,
+		Name:             p.Name,
+		Description:      p.Description,
+		LLMApiKey:        p.LLMApiKey,
+		TTSApiKey:        p.TTSApiKey,
+		KnownCharacters:  knownCharacters,
+		NarratorVoiceID:  p.NarratorVoiceID,
+		CreatedAt:        p.CreatedAt,
+		UpdatedAt:        p.UpdatedAt,
 	}
 }
 
@@ -173,13 +216,15 @@ func toModelsProject(p *repositories.Project) *models.Project {
 		_ = json.Unmarshal([]byte(p.KnownCharacters), &knownCharacters)
 	}
 	return &models.Project{
-		ID:              p.ID,
-		Name:            p.Name,
-		Description:     p.Description,
-		LLMApiKey:       p.LLMApiKey,
-		KnownCharacters: knownCharacters,
-		CreatedAt:       p.CreatedAt,
-		UpdatedAt:       p.UpdatedAt,
+		ID:               p.ID,
+		Name:             p.Name,
+		Description:      p.Description,
+		LLMApiKey:        p.LLMApiKey,
+		TTSApiKey:        p.TTSApiKey,
+		KnownCharacters:  knownCharacters,
+		NarratorVoiceID:  p.NarratorVoiceID,
+		CreatedAt:        p.CreatedAt,
+		UpdatedAt:        p.UpdatedAt,
 	}
 }
 
@@ -345,6 +390,28 @@ func (s *ProjectService) SetKnownCharacterVoice(projectID int64, characterName s
 		utils.Info("角色音色设置成功: projectID=%d, characterName=%s, voiceID=%s", projectID, characterName, voiceID)
 	}
 
+	return nil
+}
+
+// SetProjectNarratorVoiceID 设置工程的旁白音色ID
+func (s *ProjectService) SetProjectNarratorVoiceID(id int64, voiceID string) error {
+	utils.Info("设置工程旁白音色: id=%d, voiceID=%s", id, voiceID)
+	project, err := s.repo.GetByID(id)
+	if err != nil {
+		utils.Error("设置旁白音色失败 - 查找工程: id=%d, err=%v", id, err)
+		return err
+	}
+	if project == nil {
+		utils.Warn("设置旁白音色失败 - 工程不存在: id=%d", id)
+		return nil
+	}
+
+	project.NarratorVoiceID = voiceID
+	if err := s.repo.Update(project); err != nil {
+		utils.Error("设置旁白音色失败: id=%d, err=%v", id, err)
+		return err
+	}
+	utils.Info("旁白音色设置成功: id=%d, voiceID=%s", id, voiceID)
 	return nil
 }
 

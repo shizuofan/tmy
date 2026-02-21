@@ -100,6 +100,16 @@ func (a *App) GetProjectLLMApiKey(id int64) (string, error) {
 	return a.projectController.GetProjectLLMApiKey(id)
 }
 
+// SetProjectTTSApiKey 设置工程的 TTS API Key
+func (a *App) SetProjectTTSApiKey(id int64, apiKey string) error {
+	return a.projectController.SetProjectTTSApiKey(id, apiKey)
+}
+
+// GetProjectTTSApiKey 获取工程的 TTS API Key
+func (a *App) GetProjectTTSApiKey(id int64) (string, error) {
+	return a.projectController.GetProjectTTSApiKey(id)
+}
+
 // UpdateProjectKnownCharacters 更新工程的已知角色列表
 func (a *App) UpdateProjectKnownCharacters(projectID int64, characters []models.CharacterInfo) error {
 	return a.projectController.UpdateProjectKnownCharacters(projectID, characters)
@@ -226,6 +236,11 @@ func (a *App) UpdateCharacter(id int64, name, description, voiceID string) error
 // DeleteCharacter 删除角色
 func (a *App) DeleteCharacter(id int64) error {
 	return a.characterController.DeleteCharacter(id)
+}
+
+// UpdateNarratorVoice 更新旁白音色
+func (a *App) UpdateNarratorVoice(projectID int64, voiceID string) error {
+	return a.characterController.UpdateNarratorVoice(projectID, voiceID)
 }
 
 // ========== 音色相关方法 ==========

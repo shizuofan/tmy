@@ -4,20 +4,21 @@ import {
   Bot,
   Sparkles,
   Volume2,
+  BookOpen,
 } from 'lucide-react';
 import api from '../utils/api';
-import { CharacterInfo, Voice } from '../types';
+import { Character, Voice } from '../types';
 
 interface RoleManagerProps {
   projectId: number;
 }
 
 const RoleManager: React.FC<RoleManagerProps> = ({ projectId }) => {
-  const [knownCharacters, setKnownCharacters] = useState<CharacterInfo[]>([]);
+  const [characters, setCharacters] = useState<Character[]>([]);
   const [voices, setVoices] = useState<Voice[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  // 加载已知角色列表和音色列表
+  // 加载角色列表和音色列表
   useEffect(() => {
     if (projectId) {
       loadData();
@@ -28,10 +29,10 @@ const RoleManager: React.FC<RoleManagerProps> = ({ projectId }) => {
     setIsLoading(true);
     try {
       const [charData, voiceData] = await Promise.all([
-        api.getProjectKnownCharacters(projectId),
+        api.getCharacters(projectId),
         api.getVoices(),
       ]);
-      setKnownCharacters(charData);
+      setCharacters(charData);
       setVoices(voiceData);
     } catch (error) {
       console.error('Failed to load data:', error);
@@ -39,29 +40,40 @@ const RoleManager: React.FC<RoleManagerProps> = ({ projectId }) => {
     setIsLoading(false);
   };
 
-  const handleDeleteKnownCharacter = async (characterName: string) => {
-    if (!window.confirm(`确定要删除角色 "${characterName}" 吗？`)) return;
+  const handleDeleteCharacter = async (characterId: number) => {
+    // 旁白角色不能删除
+    if (characterId === 0) return;
 
     setIsLoading(true);
     try {
-      await api.deleteProjectKnownCharacter(projectId, characterName);
+      await api.deleteCharacter(characterId);
       loadData();
     } catch (error) {
-      console.error('Failed to delete known character:', error);
+      console.error('Failed to delete character:', error);
     }
     setIsLoading(false);
   };
 
-  const handleVoiceChange = async (characterName: string, voiceId: string) => {
+  const handleVoiceChange = async (characterId: number, voiceId: string) => {
     try {
       // 更新本地状态
-      setKnownCharacters(prev =>
+      setCharacters(prev =>
         prev.map(c =>
-          c.name === characterName ? { ...c, voiceId } : c
+          c.id === characterId ? { ...c, voiceId } : c
         )
       );
+
       // 保存到后端
-      await api.setKnownCharacterVoice(projectId, characterName, voiceId);
+      if (characterId === 0) {
+        // 旁白角色特殊处理
+        await api.updateNarratorVoice(projectId, voiceId);
+      } else {
+        // 普通角色
+        const char = characters.find(c => c.id === characterId);
+        if (char) {
+          await api.updateCharacter(characterId, char.name, char.description, voiceId);
+        }
+      }
     } catch (error) {
       console.error('Failed to set character voice:', error);
       // 回滚本地状态
@@ -79,31 +91,31 @@ const RoleManager: React.FC<RoleManagerProps> = ({ projectId }) => {
       <div className="role-manager-header">
         <div className="header-left">
           <Bot size={20} />
-          <h2>已知角色</h2>
-          {knownCharacters.length > 0 && (
-            <span className="count-badge">{knownCharacters.length}</span>
+          <h2>角色管理</h2>
+          {characters.length > 0 && (
+            <span className="count-badge">{characters.length}</span>
           )}
         </div>
       </div>
 
       <div className="role-list">
-        {isLoading && knownCharacters.length === 0 ? (
+        {isLoading && characters.length === 0 ? (
           <div className="loading-state">
             <div className="spinner"></div>
             <p>加载中...</p>
           </div>
-        ) : knownCharacters.length === 0 ? (
+        ) : characters.length === 0 ? (
           <div className="empty-state">
             <Bot size={48} />
-            <h3>暂未知角色</h3>
+            <h3>暂无角色</h3>
             <p>使用 LLM 解析文本后，识别到的角色会显示在这里</p>
           </div>
         ) : (
           <div className="role-grid">
-            {knownCharacters.map((character, index) => (
-              <div key={`${character.name}-${index}`} className="role-card known-character-card">
-                <div className="role-avatar known-avatar">
-                  <Bot size={28} />
+            {characters.map((character) => (
+              <div key={`${character.id}-${character.name}`} className={`role-card ${character.id === 0 ? 'narrator-card' : 'known-character-card'}`}>
+                <div className={`role-avatar ${character.id === 0 ? 'narrator-avatar' : 'known-avatar'}`}>
+                  {character.id === 0 ? <BookOpen size={28} /> : <Bot size={28} />}
                 </div>
                 <div className="role-info">
                   <h4>{character.name}</h4>
@@ -115,7 +127,7 @@ const RoleManager: React.FC<RoleManagerProps> = ({ projectId }) => {
                     <select
                       className="voice-select"
                       value={character.voiceId || ''}
-                      onChange={(e) => handleVoiceChange(character.name, e.target.value)}
+                      onChange={(e) => handleVoiceChange(character.id, e.target.value)}
                       disabled={isLoading}
                     >
                       <option value="">选择音色</option>
@@ -126,20 +138,30 @@ const RoleManager: React.FC<RoleManagerProps> = ({ projectId }) => {
                       ))}
                     </select>
                   </div>
-                  <div className="known-badge">
-                    <Sparkles size={12} />
-                    <span>AI 识别</span>
-                  </div>
+                  {character.id !== 0 && (
+                    <div className="known-badge">
+                      <Sparkles size={12} />
+                      <span>AI 识别</span>
+                    </div>
+                  )}
+                  {character.id === 0 && (
+                    <div className="narrator-badge">
+                      <BookOpen size={12} />
+                      <span>系统角色</span>
+                    </div>
+                  )}
                 </div>
                 <div className="role-actions">
-                  <button
-                    className="btn-icon btn-danger"
-                    onClick={() => handleDeleteKnownCharacter(character.name)}
-                    disabled={isLoading}
-                    title="删除"
-                  >
-                    <Trash2 size={16} />
-                  </button>
+                  {character.id !== 0 && (
+                    <button
+                      className="btn-icon btn-danger"
+                      onClick={() => handleDeleteCharacter(character.id)}
+                      disabled={isLoading}
+                      title="删除"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  )}
                 </div>
               </div>
             ))}
@@ -271,6 +293,10 @@ const RoleManager: React.FC<RoleManagerProps> = ({ projectId }) => {
           background: linear-gradient(135deg, #10B981 0%, #059669 100%);
         }
 
+        .role-avatar.narrator-avatar {
+          background: linear-gradient(135deg, #00A8FF 0%, #0088CC 100%);
+        }
+
         .role-info {
           flex: 1;
           min-width: 0;
@@ -336,6 +362,18 @@ const RoleManager: React.FC<RoleManagerProps> = ({ projectId }) => {
           padding: 4px 10px;
           background-color: rgba(16, 185, 129, 0.12);
           color: #10B981;
+          border-radius: 6px;
+          font-size: 0.8rem;
+          font-weight: 500;
+        }
+
+        .narrator-badge {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          padding: 4px 10px;
+          background-color: rgba(0, 168, 255, 0.12);
+          color: #00A8FF;
           border-radius: 6px;
           font-size: 0.8rem;
           font-weight: 500;

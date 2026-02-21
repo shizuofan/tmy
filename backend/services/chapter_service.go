@@ -233,7 +233,7 @@ func (s *ChapterService) SplitParagraph(chapterID int64) ([]*models.Paragraph, e
 		}
 	}
 
-	utils.Debug("调用 LLM 拆分段落: chapterID=%d, contentLength=%d", chapterID, len(chapter.Content))
+	utils.Info("调用 LLM 拆分段落: chapterID=%d, content=%s", chapterID, chapter.Content)
 
 	// 使用项目 API Key 和固定的 model name 创建 LLM 客户端
 	config := utils.LLMConfig{

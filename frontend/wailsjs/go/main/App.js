@@ -78,6 +78,10 @@ export function GetProjectLLMApiKey(arg1) {
   return window['go']['main']['App']['GetProjectLLMApiKey'](arg1);
 }
 
+export function GetProjectTTSApiKey(arg1) {
+  return window['go']['main']['App']['GetProjectTTSApiKey'](arg1);
+}
+
 export function GetProjects() {
   return window['go']['main']['App']['GetProjects']();
 }
@@ -110,6 +114,10 @@ export function SetProjectLLMApiKey(arg1, arg2) {
   return window['go']['main']['App']['SetProjectLLMApiKey'](arg1, arg2);
 }
 
+export function SetProjectTTSApiKey(arg1, arg2) {
+  return window['go']['main']['App']['SetProjectTTSApiKey'](arg1, arg2);
+}
+
 export function SplitParagraph(arg1) {
   return window['go']['main']['App']['SplitParagraph'](arg1);
 }
@@ -124,6 +132,10 @@ export function UpdateChapter(arg1, arg2, arg3) {
 
 export function UpdateCharacter(arg1, arg2, arg3, arg4) {
   return window['go']['main']['App']['UpdateCharacter'](arg1, arg2, arg3, arg4);
+}
+
+export function UpdateNarratorVoice(arg1, arg2) {
+  return window['go']['main']['App']['UpdateNarratorVoice'](arg1, arg2);
 }
 
 export function UpdateParagraph(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9) {

@@ -9,13 +9,15 @@ import (
 
 // Project 工程模型
 type Project struct {
-	ID              int64     `json:"id"`
-	Name            string    `json:"name"`
-	Description     string    `json:"description"`
-	LLMApiKey       string    `json:"llmApiKey"` // 文本大模型 API Key
-	KnownCharacters string    `json:"knownCharacters"` // 已知角色列表(JSON格式存储
-	CreatedAt       time.Time `json:"createdAt"`
-	UpdatedAt       time.Time `json:"updatedAt"`
+	ID               int64     `json:"id"`
+	Name             string    `json:"name"`
+	Description      string    `json:"description"`
+	LLMApiKey        string    `json:"llmApiKey"`        // 文本大模型 API Key
+	TTSApiKey        string    `json:"ttsApiKey"`        // 语音大模型 API Key
+	KnownCharacters  string    `json:"knownCharacters"`  // 已知角色列表(JSON格式存储
+	NarratorVoiceID  string    `json:"narratorVoiceId"`  // 旁白音色ID
+	CreatedAt        time.Time `json:"createdAt"`
+	UpdatedAt        time.Time `json:"updatedAt"`
 }
 
 // ProjectRepository 工程数据访问接口
@@ -48,8 +50,8 @@ func (r *projectRepository) Create(project *Project) error {
 	project.UpdatedAt = now
 
 	result, err := r.getDB().Exec(
-		"INSERT INTO projects (name, description, llm_api_key, known_characters, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
-		project.Name, project.Description, project.LLMApiKey, project.KnownCharacters, project.CreatedAt, project.UpdatedAt,
+		"INSERT INTO projects (name, description, llm_api_key, tts_api_key, known_characters, narrator_voice_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+		project.Name, project.Description, project.LLMApiKey, project.TTSApiKey, project.KnownCharacters, project.NarratorVoiceID, project.CreatedAt, project.UpdatedAt,
 	)
 	if err != nil {
 		return err
@@ -66,7 +68,7 @@ func (r *projectRepository) Create(project *Project) error {
 
 // GetAll 获取所有工程
 func (r *projectRepository) GetAll() ([]*Project, error) {
-	rows, err := r.getDB().Query("SELECT id, name, description, llm_api_key, known_characters, created_at, updated_at FROM projects ORDER BY created_at DESC")
+	rows, err := r.getDB().Query("SELECT id, name, description, llm_api_key, tts_api_key, known_characters, narrator_voice_id, created_at, updated_at FROM projects ORDER BY created_at DESC")
 	if err != nil {
 		return nil, err
 	}
@@ -76,12 +78,16 @@ func (r *projectRepository) GetAll() ([]*Project, error) {
 	for rows.Next() {
 		var project Project
 		var llmApiKey sql.NullString
+		var ttsApiKey sql.NullString
 		var knownCharacters sql.NullString
-		if err := rows.Scan(&project.ID, &project.Name, &project.Description, &llmApiKey, &knownCharacters, &project.CreatedAt, &project.UpdatedAt); err != nil {
+		var narratorVoiceID sql.NullString
+		if err := rows.Scan(&project.ID, &project.Name, &project.Description, &llmApiKey, &ttsApiKey, &knownCharacters, &narratorVoiceID, &project.CreatedAt, &project.UpdatedAt); err != nil {
 			return nil, err
 		}
 		project.LLMApiKey = llmApiKey.String
+		project.TTSApiKey = ttsApiKey.String
 		project.KnownCharacters = knownCharacters.String
+		project.NarratorVoiceID = narratorVoiceID.String
 		projects = append(projects, &project)
 	}
 
@@ -92,11 +98,13 @@ func (r *projectRepository) GetAll() ([]*Project, error) {
 func (r *projectRepository) GetByID(id int64) (*Project, error) {
 	var project Project
 	var llmApiKey sql.NullString
+	var ttsApiKey sql.NullString
 	var knownCharacters sql.NullString
+	var narratorVoiceID sql.NullString
 	err := r.getDB().QueryRow(
-		"SELECT id, name, description, llm_api_key, known_characters, created_at, updated_at FROM projects WHERE id = ?",
+		"SELECT id, name, description, llm_api_key, tts_api_key, known_characters, narrator_voice_id, created_at, updated_at FROM projects WHERE id = ?",
 		id,
-	).Scan(&project.ID, &project.Name, &project.Description, &llmApiKey, &knownCharacters, &project.CreatedAt, &project.UpdatedAt)
+	).Scan(&project.ID, &project.Name, &project.Description, &llmApiKey, &ttsApiKey, &knownCharacters, &narratorVoiceID, &project.CreatedAt, &project.UpdatedAt)
 
 	if err == sql.ErrNoRows {
 		return nil, nil
@@ -105,7 +113,9 @@ func (r *projectRepository) GetByID(id int64) (*Project, error) {
 	}
 
 	project.LLMApiKey = llmApiKey.String
+	project.TTSApiKey = ttsApiKey.String
 	project.KnownCharacters = knownCharacters.String
+	project.NarratorVoiceID = narratorVoiceID.String
 	return &project, nil
 }
 
@@ -113,8 +123,8 @@ func (r *projectRepository) GetByID(id int64) (*Project, error) {
 func (r *projectRepository) Update(project *Project) error {
 	project.UpdatedAt = time.Now()
 	_, err := r.getDB().Exec(
-		"UPDATE projects SET name = ?, description = ?, llm_api_key = ?, known_characters = ?, updated_at = ? WHERE id = ?",
-		project.Name, project.Description, project.LLMApiKey, project.KnownCharacters, project.UpdatedAt, project.ID,
+		"UPDATE projects SET name = ?, description = ?, llm_api_key = ?, tts_api_key = ?, known_characters = ?, narrator_voice_id = ?, updated_at = ? WHERE id = ?",
+		project.Name, project.Description, project.LLMApiKey, project.TTSApiKey, project.KnownCharacters, project.NarratorVoiceID, project.UpdatedAt, project.ID,
 	)
 	return err
 }

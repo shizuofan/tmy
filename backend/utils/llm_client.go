@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"strings"
 
+	"tmy2/backend/models"
+
 	"github.com/volcengine/volcengine-go-sdk/service/arkruntime"
 	"github.com/volcengine/volcengine-go-sdk/service/arkruntime/model"
 )
@@ -24,8 +26,8 @@ type SplitParagraphRequest struct {
 
 // SplitParagraphResponse 拆分段落响应
 type SplitParagraphResponse struct {
-	Paragraphs   []LLMParagraph `json:"paragraphs"`
-	Characters   []LLMCharacter `json:"characters"`
+	Paragraphs []LLMParagraph `json:"paragraphs"`
+	Characters []LLMCharacter `json:"characters"`
 }
 
 // LLMParagraph LLM 返回的段落
@@ -163,9 +165,12 @@ func buildSplitPrompt(content string, knownCharacters []CharacterInfoForPrompt) 
 
 注意：
 - 说话角色请优先从已知角色列表中选择
-- 如果发现新角色，请直接使用识别到的角色名
+- 如果发现文件中出现角色，请直接使用识别到的角色名
 `, charListStr)
 	}
+
+	// 构建语气列表说明
+	toneList := buildToneList()
 
 	return fmt.Sprintf(`你是一个专业的小说文本解析助手。请将以下小说文本拆分成段落，并识别每个段落的说话角色和语气。同时分析文中出现的角色信息。
 
@@ -174,7 +179,8 @@ func buildSplitPrompt(content string, knownCharacters []CharacterInfoForPrompt) 
 2. 每个段落应该是一段连续的对话或叙述
 3. 对于对话，识别说话角色（speaker）和语气（tone）
 4. 对于叙述性文本，speaker 留空，tone 为 "neutral"
-5. 语气可选值：neutral, happy, sad, angry, excited, fearful, surprised, disgusted
+5. 一般角色tone可选值（必须从以下列表中选择）：
+%s
 6. 识别文中出现的所有角色，为每个角色生成简短的描述（如与主角的关系、性格特点等）
 %s
 
@@ -189,14 +195,30 @@ func buildSplitPrompt(content string, knownCharacters []CharacterInfoForPrompt) 
   ],
   "characters": [
     {
-      "name": "角色名称",
+      "name": "新角色名称",
       "description": "角色简介：描述角色的身份、与主角的关系、性格特点等"
     }
   ]
 }
 
 小说文本：
-%s`, knownCharsStr, content)
+%s`, toneList, knownCharsStr, content)
+}
+
+// buildToneList 构建语气列表说明
+func buildToneList() string {
+	toneMap := models.GetToneNameMap()
+	tones := models.GetAllChineseTones()
+
+	var builder strings.Builder
+	for _, tone := range tones {
+		name := toneMap[tone]
+		if name == "" {
+			name = tone
+		}
+		builder.WriteString(fmt.Sprintf("- %s: %s\n", tone, name))
+	}
+	return builder.String()
 }
 
 // callChat 调用聊天 API
@@ -218,6 +240,7 @@ func (c *LLMClient) callChat(ctx context.Context, prompt string) (string, error)
 	}
 
 	Debug("正在发送请求到火山引擎 API...")
+	Info("发送请求到火山引擎 API, content=" + prompt)
 	resp, err := c.client.CreateChatCompletion(ctx, req)
 	if err != nil {
 		Error("火山引擎 API 返回错误: %v", err)
@@ -250,71 +273,33 @@ func (c *LLMClient) callChat(ctx context.Context, prompt string) (string, error)
 
 // parseSplitResponse 解析拆分响应
 func parseSplitResponse(content string) (*SplitParagraphResult, error) {
-	// 尝试提取 JSON 部分
-	var jsonStr string
-	startIdx := -1
-	endIdx := -1
-	inString := false
-	escapeNext := false
-	braceCount := 0
-
-	for i, char := range content {
-		if escapeNext {
-			escapeNext = false
-			continue
-		}
-		if char == '\\' {
-			escapeNext = true
-			continue
-		}
-		if char == '"' {
-			inString = !inString
-			continue
-		}
-		if !inString {
-			if char == '{' {
-				if braceCount == 0 {
-					startIdx = i
-				}
-				braceCount++
-			} else if char == '}' {
-				braceCount--
-				if braceCount == 0 {
-					endIdx = i + 1
-					break
-				}
-			}
-		}
-	}
-
-	if startIdx >= 0 && endIdx > startIdx {
-		jsonStr = content[startIdx:endIdx]
-	} else {
-		// 如果找不到 JSON 格式，尝试清理 markdown 代码块标记
-		cleaned := strings.TrimSpace(content)
-		cleaned = strings.TrimPrefix(cleaned, "```json")
-		cleaned = strings.TrimPrefix(cleaned, "```")
-		cleaned = strings.TrimSuffix(cleaned, "```")
-		jsonStr = strings.TrimSpace(cleaned)
-	}
+	Debug("LLM 完整响应:\n%s", content)
 
 	var response SplitParagraphResponse
-	if err := json.Unmarshal([]byte(jsonStr), &response); err != nil {
-		// 如果解析失败，尝试只解析 paragraphs 部分（兼容旧格式）
-		var fallbackResp struct {
-			Paragraphs []LLMParagraph `json:"paragraphs"`
-		}
-		if fallbackErr := json.Unmarshal([]byte(jsonStr), &fallbackResp); fallbackErr != nil {
-			return nil, fmt.Errorf("解析 LLM 响应失败: %w", err)
-		}
+	if err := json.Unmarshal([]byte(content), &response); err == nil {
+		Debug("JSON 直接解析成功，段落数: %d, 角色数: %d", len(response.Paragraphs), len(response.Characters))
 		return &SplitParagraphResult{
-			Paragraphs: fallbackResp.Paragraphs,
-			Characters: []LLMCharacter{},
+			Paragraphs: response.Paragraphs,
+			Characters: response.Characters,
 		}, nil
 	}
 
-	return &SplitParagraphResult{
-		Paragraphs: response.Paragraphs,
-		Characters: response.Characters,
-	}, nil
+	// 尝试提取 JSON 部分
+	firstBrace := strings.Index(content, "{")
+	lastBrace := strings.LastIndex(content, "}")
+	if firstBrace >= 0 && lastBrace > firstBrace {
+		jsonStr := content[firstBrace : lastBrace+1]
+		Debug("尝试提取 JSON 部分:\n%s", jsonStr)
+
+		if err := json.Unmarshal([]byte(jsonStr), &response); err == nil {
+			Debug("JSON 提取解析成功，段落数: %d, 角色数: %d", len(response.Paragraphs), len(response.Characters))
+			return &SplitParagraphResult{
+				Paragraphs: response.Paragraphs,
+				Characters: response.Characters,
+			}, nil
+		}
+	}
+
+	Error("LLM 响应解析失败，完整响应:\n%s", content)
+	return nil, fmt.Errorf("解析 LLM 响应失败，请检查日志")
 }

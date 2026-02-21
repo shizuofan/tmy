@@ -166,7 +166,9 @@ export namespace models {
 	    name: string;
 	    description: string;
 	    llmApiKey: string;
+	    ttsApiKey: string;
 	    knownCharacters: CharacterInfo[];
+	    narratorVoiceId: string;
 	    // Go type: time
 	    createdAt: any;
 	    // Go type: time
@@ -182,7 +184,9 @@ export namespace models {
 	        this.name = source["name"];
 	        this.description = source["description"];
 	        this.llmApiKey = source["llmApiKey"];
+	        this.ttsApiKey = source["ttsApiKey"];
 	        this.knownCharacters = this.convertValues(source["knownCharacters"], CharacterInfo);
+	        this.narratorVoiceId = source["narratorVoiceId"];
 	        this.createdAt = this.convertValues(source["createdAt"], null);
 	        this.updatedAt = this.convertValues(source["updatedAt"], null);
 	    }

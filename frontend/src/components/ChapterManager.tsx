@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Plus, Edit2, Trash2, GripVertical, FileText, List, X, ExternalLink } from 'lucide-react';
 import api from '../utils/api';
 import { Chapter } from '../types';
+import ConfirmModal from './ConfirmModal';
 
 interface ChapterManagerProps {
   projectId: number;
@@ -18,6 +19,21 @@ const ChapterManager: React.FC<ChapterManagerProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newChapter, setNewChapter] = useState({ title: '', content: '' });
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    type: 'warning' | 'danger' | 'info';
+    confirmText?: string;
+    cancelText?: string;
+    onConfirm: () => void;
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    type: 'warning',
+    onConfirm: () => {},
+  });
 
   // 加载章节列表
   const loadChapters = async () => {
@@ -53,17 +69,26 @@ const ChapterManager: React.FC<ChapterManagerProps> = ({
   };
 
   // 删除章节
-  const handleDeleteChapter = async (id: number) => {
-    if (!window.confirm('确定要删除此章节吗？')) return;
-
-    setIsLoading(true);
-    try {
-      await api.deleteChapter(id);
-      loadChapters();
-    } catch (error) {
-      console.error('Failed to delete chapter:', error);
-    }
-    setIsLoading(false);
+  const handleDeleteChapter = (id: number) => {
+    setConfirmModal({
+      isOpen: true,
+      title: '删除章节',
+      message: '确定要删除此章节吗？此操作不可撤销。',
+      type: 'danger',
+      confirmText: '删除',
+      cancelText: '取消',
+      onConfirm: async () => {
+        setConfirmModal(prev => ({ ...prev, isOpen: false }));
+        setIsLoading(true);
+        try {
+          await api.deleteChapter(id);
+          loadChapters();
+        } catch (error) {
+          console.error('Failed to delete chapter:', error);
+        }
+        setIsLoading(false);
+      },
+    });
   };
 
   // 排序拖拽功能（简单实现）
@@ -233,6 +258,18 @@ const ChapterManager: React.FC<ChapterManagerProps> = ({
           </div>
         </div>
       )}
+
+      {/* 确认对话框 */}
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        type={confirmModal.type}
+        confirmText={confirmModal.confirmText}
+        cancelText={confirmModal.cancelText}
+        onConfirm={confirmModal.onConfirm}
+        onCancel={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+      />
 
       <style>{`
         .chapter-manager {

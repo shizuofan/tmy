@@ -9,6 +9,8 @@ import {
   DeleteProject,
   SetProjectLLMApiKey,
   GetProjectLLMApiKey,
+  SetProjectTTSApiKey,
+  GetProjectTTSApiKey,
   GetProjectKnownCharacters,
   UpdateProjectKnownCharacters,
   DeleteProjectKnownCharacter,
@@ -23,6 +25,7 @@ import {
   GetCharacter,
   UpdateCharacter,
   DeleteCharacter,
+  UpdateNarratorVoice,
   GetVoices,
   GetVoice,
   CreateParagraph,
@@ -104,6 +107,25 @@ export const api = {
       return result || "";
     } catch (error) {
       console.error("Failed to get project LLM API key:", error);
+      throw error;
+    }
+  },
+
+  setProjectTTSApiKey: async (id: number, apiKey: string): Promise<void> => {
+    try {
+      await SetProjectTTSApiKey(id, apiKey);
+    } catch (error) {
+      console.error("Failed to set project TTS API key:", error);
+      throw error;
+    }
+  },
+
+  getProjectTTSApiKey: async (id: number): Promise<string> => {
+    try {
+      const result = await GetProjectTTSApiKey(id);
+      return result || "";
+    } catch (error) {
+      console.error("Failed to get project TTS API key:", error);
       throw error;
     }
   },
@@ -351,6 +373,15 @@ export const api = {
       await DeleteCharacter(id);
     } catch (error) {
       console.error("Failed to delete character:", error);
+      throw error;
+    }
+  },
+
+  updateNarratorVoice: async (projectId: number, voiceId: string): Promise<void> => {
+    try {
+      await UpdateNarratorVoice(projectId, voiceId);
+    } catch (error) {
+      console.error("Failed to update narrator voice:", error);
       throw error;
     }
   },

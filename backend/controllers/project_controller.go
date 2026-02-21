@@ -52,6 +52,16 @@ func (c *ProjectController) GetProjectLLMApiKey(id int64) (string, error) {
 	return c.service.GetProjectLLMApiKey(id)
 }
 
+// SetProjectTTSApiKey 设置工程的 TTS API Key
+func (c *ProjectController) SetProjectTTSApiKey(id int64, apiKey string) error {
+	return c.service.SetProjectTTSApiKey(id, apiKey)
+}
+
+// GetProjectTTSApiKey 获取工程的 TTS API Key
+func (c *ProjectController) GetProjectTTSApiKey(id int64) (string, error) {
+	return c.service.GetProjectTTSApiKey(id)
+}
+
 // UpdateProjectKnownCharacters 更新工程的已知角色列表
 func (c *ProjectController) UpdateProjectKnownCharacters(projectID int64, characters []models.CharacterInfo) error {
 	return c.service.UpdateProjectKnownCharacters(projectID, characters)

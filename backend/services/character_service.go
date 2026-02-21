@@ -9,13 +9,15 @@ import (
 
 // CharacterService 角色服务
 type CharacterService struct {
-	repo repositories.CharacterRepository
+	repo            repositories.CharacterRepository
+	projectRepo     repositories.ProjectRepository
 }
 
 // NewCharacterService 创建角色服务
 func NewCharacterService() *CharacterService {
 	return &CharacterService{
-		repo: repositories.NewCharacterRepository(),
+		repo:        repositories.NewCharacterRepository(),
+		projectRepo: repositories.NewProjectRepository(),
 	}
 }
 
@@ -39,7 +41,26 @@ func (s *CharacterService) GetCharacters(projectID int64) ([]*models.Character, 
 	if err != nil {
 		return nil, err
 	}
-	return toModelsCharacterList(cs), nil
+
+	// 获取工程的旁白音色配置
+	var narratorVoiceID string
+	if project, err := s.projectRepo.GetByID(projectID); err == nil && project != nil {
+		narratorVoiceID = project.NarratorVoiceID
+	}
+
+	// 添加旁白角色（虚拟角色，总是在列表第一位）
+	result := []*models.Character{
+		{
+			ID:          0, // 0 表示旁白虚拟角色
+			ProjectID:   projectID,
+			Name:        "旁白",
+			Description: "叙述性文本",
+			VoiceID:     narratorVoiceID,
+		},
+	}
+	result = append(result, toModelsCharacterList(cs)...)
+
+	return result, nil
 }
 
 // GetCharacter 获取角色详情
@@ -53,6 +74,9 @@ func (s *CharacterService) GetCharacter(id int64) (*models.Character, error) {
 
 // UpdateCharacter 更新角色
 func (s *CharacterService) UpdateCharacter(id int64, name, description, voiceID string) error {
+	if id == 0 {
+		return fmt.Errorf("cannot update narrator character")
+	}
 	character, err := s.repo.GetByID(id)
 	if err != nil {
 		return err
@@ -69,7 +93,24 @@ func (s *CharacterService) UpdateCharacter(id int64, name, description, voiceID 
 
 // DeleteCharacter 删除角色
 func (s *CharacterService) DeleteCharacter(id int64) error {
+	if id == 0 {
+		return fmt.Errorf("cannot delete narrator character")
+	}
 	return s.repo.Delete(id)
+}
+
+// UpdateNarratorVoice 更新旁白角色的音色
+func (s *CharacterService) UpdateNarratorVoice(projectID int64, voiceID string) error {
+	project, err := s.projectRepo.GetByID(projectID)
+	if err != nil {
+		return err
+	}
+	if project == nil {
+		return fmt.Errorf("project not found")
+	}
+
+	project.NarratorVoiceID = voiceID
+	return s.projectRepo.Update(project)
 }
 
 // ========== 模型转换方法 ==========

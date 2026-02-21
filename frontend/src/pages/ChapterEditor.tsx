@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 import api from '../utils/api';
 import { Chapter, Paragraph, CharacterInfo, Voice, SupportedTones, DefSpeed } from '../types';
+import ConfirmModal from '../components/ConfirmModal';
 
 interface TimelineSegment {
   id: number;
@@ -64,10 +65,28 @@ const ChapterEditor: React.FC = () => {
   const [chapterText, setChapterText] = useState('');
   const [isSavingChapter, setIsSavingChapter] = useState(false);
   const [isGeneratingScript, setIsGeneratingScript] = useState(false);
+  const [generateProgress, setGenerateProgress] = useState(0);
+  const [generateTimeLeft, setGenerateTimeLeft] = useState('');
   const [showSpeakerDropdown, setShowSpeakerDropdown] = useState(false);
   const [speakerSearch, setSpeakerSearch] = useState('');
+  const [showErrorModal, setShowErrorModal] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    type: 'warning' | 'danger' | 'info';
+    onConfirm: (() => void) | null;
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    type: 'warning',
+    onConfirm: null,
+  });
   const speakerDropdownRef = useRef<HTMLDivElement>(null);
   const timelineRef = useRef<HTMLDivElement>(null);
+  const generateProgressIntervalRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (chapterId) {
@@ -293,23 +312,31 @@ const ChapterEditor: React.FC = () => {
 
   // 删除段落
   const handleDeleteParagraph = (id: number) => {
-    if (!window.confirm('确定要删除此段落吗？')) return;
-    const updatedParagraphs = paragraphs.filter((p) => p.id !== id);
-    setParagraphs(updatedParagraphs);
-    calculateTotalDuration(updatedParagraphs);
-    // 从脏状态中移除
-    setDirtyParagraphs(prev => {
-      const next = new Set(prev);
-      next.delete(id);
-      return next;
+    setConfirmModal({
+      isOpen: true,
+      title: '删除段落',
+      message: '确定要删除此段落吗？',
+      type: 'danger',
+      onConfirm: () => {
+        const updatedParagraphs = paragraphs.filter((p) => p.id !== id);
+        setParagraphs(updatedParagraphs);
+        calculateTotalDuration(updatedParagraphs);
+        // 从脏状态中移除
+        setDirtyParagraphs(prev => {
+          const next = new Set(prev);
+          next.delete(id);
+          return next;
+        });
+        if (selectedParagraphId === id) {
+          if (updatedParagraphs.length > 0) {
+            handleSelectParagraph(updatedParagraphs[0].id);
+          } else {
+            setSelectedParagraphId(null);
+          }
+        }
+        setConfirmModal(prev => ({ ...prev, isOpen: false }));
+      },
     });
-    if (selectedParagraphId === id) {
-      if (updatedParagraphs.length > 0) {
-        handleSelectParagraph(updatedParagraphs[0].id);
-      } else {
-        setSelectedParagraphId(null);
-      }
-    }
   };
 
   // 生成单个音频
@@ -318,20 +345,59 @@ const ChapterEditor: React.FC = () => {
     // 模拟生成音频
   };
 
-  // 生成脚本 - 调用 splitParagraph
-  const handleGenerateScript = async () => {
+  // 清理进度定时器
+  const clearProgressInterval = () => {
+    if (generateProgressIntervalRef.current) {
+      clearInterval(generateProgressIntervalRef.current);
+      generateProgressIntervalRef.current = null;
+    }
+  };
+
+  // 组件卸载时清理定时器
+  useEffect(() => {
+    return () => {
+      clearProgressInterval();
+    };
+  }, []);
+
+  // 执行生成脚本
+  const doGenerateScript = async () => {
     if (!chapterId) return;
 
-    if (paragraphs.length > 0) {
-      if (!window.confirm('已存在段落，确定要重新生成吗？这将覆盖现有段落。')) {
-        return;
-      }
-    }
-
     setIsGeneratingScript(true);
+    setGenerateProgress(0);
+    setGenerateTimeLeft('预计 3-5 分钟');
+
+    // 模拟进度动画（总预计时间按4分钟=240秒计算）
+    const totalEstimatedTime = 240; // 秒
+    let elapsed = 0;
+
+    clearProgressInterval();
+    generateProgressIntervalRef.current = window.setInterval(() => {
+      elapsed += 1;
+      const progress = Math.min((elapsed / totalEstimatedTime) * 100, 95); // 最多到95%，留5%给实际完成
+      const remaining = Math.max(totalEstimatedTime - elapsed, 0);
+      const mins = Math.floor(remaining / 60);
+      const secs = remaining % 60;
+
+      setGenerateProgress(progress);
+      if (remaining > 0) {
+        setGenerateTimeLeft(`预计剩余 ${mins}分${secs}秒`);
+      } else {
+        setGenerateTimeLeft('即将完成...');
+      }
+    }, 1000);
+
     try {
       // 调用 splitParagraph 方法生成并保存段落
       const newParagraphs = await api.splitParagraph(parseInt(chapterId));
+
+      // 完成时设置100%
+      setGenerateProgress(100);
+      setGenerateTimeLeft('完成！');
+
+      // 短暂显示完成状态
+      await new Promise(resolve => setTimeout(resolve, 500));
 
       // 更新本地状态
       const sortedParas = [...newParagraphs].sort((a, b) => a.orderIndex - b.orderIndex);
@@ -349,11 +415,57 @@ const ChapterEditor: React.FC = () => {
 
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 2000);
+      // 成功时清理状态
+      clearProgressInterval();
+      setIsGeneratingScript(false);
+      setTimeout(() => {
+        setGenerateProgress(0);
+        setGenerateTimeLeft('');
+      }, 1000);
     } catch (error) {
       console.error('Failed to generate script:', error);
-      alert('生成脚本失败：' + (error as Error).message);
+      // 失败时立即停止进度动画
+      clearProgressInterval();
+      setIsGeneratingScript(false);
+      // 提取错误信息
+      let msg = '未知错误';
+      if (typeof error === 'string') {
+        msg = error;
+      } else if (error instanceof Error) {
+        msg = error.message;
+      } else if (error && typeof error === 'object') {
+        msg = (error as any).message || (error as any).error || String(error);
+      }
+      console.log('Setting error message:', msg);
+      setErrorMessage(msg);
+      setShowErrorModal(true);
+      // 重置进度状态，但延迟一点让用户看到
+      setTimeout(() => {
+        setGenerateProgress(0);
+        setGenerateTimeLeft('');
+      }, 500);
     }
-    setIsGeneratingScript(false);
+  };
+
+  // 生成脚本 - 调用 splitParagraph
+  const handleGenerateScript = async () => {
+    if (!chapterId) return;
+
+    if (paragraphs.length > 0) {
+      setConfirmModal({
+        isOpen: true,
+        title: '重新生成脚本',
+        message: '已存在段落，确定要重新生成吗？这将覆盖现有段落。',
+        type: 'warning',
+        onConfirm: () => {
+          setConfirmModal(prev => ({ ...prev, isOpen: false }));
+          doGenerateScript();
+        },
+      });
+      return;
+    }
+
+    doGenerateScript();
   };
 
   // 播放控制
@@ -483,14 +595,30 @@ const ChapterEditor: React.FC = () => {
             <Save size={16} />
             {isSaving ? '保存中...' : '保存'}
           </button>
-          <button
-            className="btn-primary"
-            onClick={handleGenerateScript}
-            disabled={isGeneratingScript}
-          >
-            <Sparkles size={16} />
-            {isGeneratingScript ? '生成中...' : paragraphs.length > 0 ? '重新生成脚本' : '生成脚本'}
-          </button>
+          <div className="generate-button-wrapper">
+            <button
+              className="btn-primary"
+              onClick={handleGenerateScript}
+              disabled={isGeneratingScript}
+            >
+              <Sparkles size={16} />
+              {isGeneratingScript ? '生成中...' : paragraphs.length > 0 ? '重新生成脚本' : '生成脚本'}
+            </button>
+            {isGeneratingScript && (
+              <div className="generate-progress-container">
+                <div className="progress-bar">
+                  <div
+                    className="progress-bar-fill"
+                    style={{ width: `${generateProgress}%` }}
+                  ></div>
+                </div>
+                <div className="progress-info">
+                  <span className="progress-percent">{Math.round(generateProgress)}%</span>
+                  <span className="progress-time">{generateTimeLeft}</span>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </header>
 
@@ -570,8 +698,7 @@ const ChapterEditor: React.FC = () => {
                   <textarea
                     value={editForm.content}
                     onChange={(e) =>
-                      handleFormChange('content', e.target.value)
-                    }
+                      handleFormChange('content', e.target.value)}
                     rows={5}
                   />
                 </div>
@@ -604,7 +731,7 @@ const ChapterEditor: React.FC = () => {
                           />
                           <div className="speaker-options">
                             <div
-                              className={`speaker-option ${!editForm.speaker ? 'selected' : ''}`}
+                              className={`speaker-option ${!editForm.speaker ? '' : 'selected'}`}
                               onClick={() => {
                                 handleFormChange('speaker', '');
                                 setShowSpeakerDropdown(false);
@@ -637,8 +764,7 @@ const ChapterEditor: React.FC = () => {
                     <select
                       value={editForm.tone}
                       onChange={(e) =>
-                        handleFormChange('tone', e.target.value)
-                      }
+                        handleFormChange('tone', e.target.value)}
                     >
                       {SupportedTones.map((tone) => (
                         <option key={tone.value} value={tone.value}>
@@ -660,8 +786,7 @@ const ChapterEditor: React.FC = () => {
                       step="0.05"
                       value={editForm.speed}
                       onChange={(e) =>
-                        handleFormChange('speed', parseFloat(e.target.value))
-                      }
+                        handleFormChange('speed', parseFloat(e.target.value))}
                     />
                     <div className="range-labels">
                       <span>0.5x</span>
@@ -821,6 +946,66 @@ const ChapterEditor: React.FC = () => {
         </div>
       )}
 
+      {/* 确认弹窗 */}
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        type={confirmModal.type}
+        onConfirm={() => {
+          if (confirmModal.onConfirm) {
+            confirmModal.onConfirm();
+          }
+        }}
+        onCancel={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+      />
+
+      {/* 错误提示模态框 */}
+      {showErrorModal && (
+        <div className="error-modal">
+          <div className="error-modal-content">
+            <div className="error-modal-header">
+              <div className="error-modal-title">
+                <AlertCircle size={24} className="error-icon" />
+                <h2>生成脚本失败</h2>
+              </div>
+              <button
+                className="modal-close"
+                onClick={() => setShowErrorModal(false)}
+              >
+                <X size={24} />
+              </button>
+            </div>
+            <div className="error-modal-body">
+              <p className="error-message-text">{errorMessage}</p>
+              {errorMessage?.includes('API Key') && (
+                <div className="error-hint-box">
+                  <Settings size={16} />
+                  <span>请前往项目详情页配置 API Key</span>
+                </div>
+              )}
+            </div>
+            <div className="error-modal-footer">
+              <button
+                className="btn-primary"
+                onClick={() => setShowErrorModal(false)}
+              >
+                知道了
+              </button>
+              {errorMessage?.includes('API Key') && projectId && (
+                <Link
+                  to={`/project/${projectId}`}
+                  className="btn-secondary"
+                  onClick={() => setShowErrorModal(false)}
+                >
+                  前往配置
+                </Link>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       <style>{`
         * {
           box-sizing: border-box;
@@ -851,6 +1036,12 @@ const ChapterEditor: React.FC = () => {
           background: linear-gradient(135deg, #1A1F26 0%, #141920 100%);
           border-bottom: 1px solid #2A3442;
           box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+          max-width: none;
+          margin: 0;
+          padding: 12px 20px;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
         }
 
         .editor-header .header-left {
@@ -973,15 +1164,49 @@ const ChapterEditor: React.FC = () => {
           display: flex;
           gap: 10px;
           flex-shrink: 0;
+          align-items: flex-start;
         }
 
-        .editor-header {
-          max-width: none;
-          margin: 0;
-          padding: 12px 20px;
+        .generate-button-wrapper {
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+        }
+
+        .generate-progress-container {
+          width: 240px;
+        }
+
+        .progress-bar {
+          width: 100%;
+          height: 6px;
+          background-color: #2A3442;
+          border-radius: 3px;
+          overflow: hidden;
+        }
+
+        .progress-bar-fill {
+          height: 100%;
+          background: linear-gradient(90deg, #00A8FF 0%, #00CC88 100%);
+          border-radius: 3px;
+          transition: width 0.3s ease;
+        }
+
+        .progress-info {
           display: flex;
           justify-content: space-between;
-          align-items: center;
+          margin-top: 4px;
+        }
+
+        .progress-percent {
+          font-size: 0.75rem;
+          color: #00A8FF;
+          font-weight: 600;
+        }
+
+        .progress-time {
+          font-size: 0.75rem;
+          color: #64748B;
         }
 
         .btn-save {
@@ -1832,6 +2057,99 @@ const ChapterEditor: React.FC = () => {
 
         .error-container h2 {
           margin: 0 0 20px;
+        }
+
+        /* 错误提示模态框 */
+        .error-modal {
+          position: fixed;
+          top: 0;
+          left: 0;
+          width: 100vw;
+          height: 100vh;
+          background-color: rgba(0, 0, 0, 0.85);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 9999;
+          backdrop-filter: blur(6px);
+          padding: 20px;
+          box-sizing: border-box;
+        }
+
+        .error-modal-content {
+          background: linear-gradient(145deg, #1E2A3A 0%, #151E2B 100%);
+          border-radius: 16px;
+          width: 100%;
+          max-width: 480px;
+          border: 1px solid #2D3E54;
+          box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+          display: flex;
+          flex-direction: column;
+          overflow: hidden;
+        }
+
+        .error-modal-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 20px 24px;
+          border-bottom: 1px solid #2D3E54;
+          flex-shrink: 0;
+        }
+
+        .error-modal-title {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          color: #E2E8F0;
+        }
+
+        .error-modal-title h2 {
+          margin: 0;
+          font-size: 1.1rem;
+          font-weight: 600;
+        }
+
+        .error-icon {
+          color: #EF4444;
+          flex-shrink: 0;
+        }
+
+        .error-modal-body {
+          padding: 24px;
+        }
+
+        .error-message-text {
+          margin: 0 0 16px 0;
+          color: #E2E8F0;
+          font-size: 0.95rem;
+          line-height: 1.6;
+        }
+
+        .error-hint-box {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          padding: 12px 16px;
+          background: rgba(0, 168, 255, 0.1);
+          border: 1px solid rgba(0, 168, 255, 0.2);
+          border-radius: 10px;
+          color: #94A3B8;
+          font-size: 0.85rem;
+        }
+
+        .error-hint-box svg {
+          color: #00A8FF;
+          flex-shrink: 0;
+        }
+
+        .error-modal-footer {
+          display: flex;
+          justify-content: flex-end;
+          gap: 10px;
+          padding: 16px 24px 24px;
+          border-top: 1px solid #2D3E54;
+          flex-shrink: 0;
         }
       `}</style>
     </div>

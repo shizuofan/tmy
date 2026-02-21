@@ -12,10 +12,13 @@ const ProjectDetailsPage: React.FC = () => {
   const [project, setProject] = useState<Project | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
-  const [isEditingApiKey, setIsEditingApiKey] = useState(false);
+  const [isEditingLLMApiKey, setIsEditingLLMApiKey] = useState(false);
+  const [isEditingTTSApiKey, setIsEditingTTSApiKey] = useState(false);
   const [editProject, setEditProject] = useState({ name: '', description: '' });
-  const [editApiKey, setEditApiKey] = useState('');
-  const [isSavingApiKey, setIsSavingApiKey] = useState(false);
+  const [editLLMApiKey, setEditLLMApiKey] = useState('');
+  const [editTTSApiKey, setEditTTSApiKey] = useState('');
+  const [isSavingLLMApiKey, setIsSavingLLMApiKey] = useState(false);
+  const [isSavingTTSApiKey, setIsSavingTTSApiKey] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -33,7 +36,8 @@ const ProjectDetailsPage: React.FC = () => {
           name: data.name,
           description: data.description,
         });
-        setEditApiKey(data.llmApiKey || '');
+        setEditLLMApiKey(data.llmApiKey || '');
+        setEditTTSApiKey(data.ttsApiKey || '');
       }
     } catch (error) {
       console.error('Failed to load project:', error);
@@ -54,17 +58,30 @@ const ProjectDetailsPage: React.FC = () => {
     setIsLoading(false);
   };
 
-  const handleSaveApiKey = async () => {
+  const handleSaveLLMApiKey = async () => {
     if (!id) return;
-    setIsSavingApiKey(true);
+    setIsSavingLLMApiKey(true);
     try {
-      await api.setProjectLLMApiKey(parseInt(id), editApiKey);
-      setIsEditingApiKey(false);
+      await api.setProjectLLMApiKey(parseInt(id), editLLMApiKey);
+      setIsEditingLLMApiKey(false);
       loadProject(parseInt(id));
     } catch (error) {
-      console.error('Failed to save API key:', error);
+      console.error('Failed to save LLM API key:', error);
     }
-    setIsSavingApiKey(false);
+    setIsSavingLLMApiKey(false);
+  };
+
+  const handleSaveTTSApiKey = async () => {
+    if (!id) return;
+    setIsSavingTTSApiKey(true);
+    try {
+      await api.setProjectTTSApiKey(parseInt(id), editTTSApiKey);
+      setIsEditingTTSApiKey(false);
+      loadProject(parseInt(id));
+    } catch (error) {
+      console.error('Failed to save TTS API key:', error);
+    }
+    setIsSavingTTSApiKey(false);
   };
 
   // 隐藏 API Key 的显示
@@ -132,212 +149,252 @@ const ProjectDetailsPage: React.FC = () => {
       {/* 主内容区域 */}
       <main className="main-content">
         <div className="content-wrapper">
-          {/* 项目信息卡片 */}
-          <section className="project-info-section">
-            <div className="section-header">
-              <h2>
-                <Sparkles size={18} />
-                项目概览
-              </h2>
-              {!isEditing && (
-                <button
-                  className="btn-ghost"
-                  onClick={() => setIsEditing(true)}
-                  disabled={isLoading}
-                >
-                  编辑信息
-                </button>
-              )}
-            </div>
+          {/* 左侧列 */}
+          <div className="left-column">
+            {/* 项目信息卡片 - 占2行 */}
+            <section className="project-info-section">
+              <div className="section-header">
+                <h2>
+                  <Sparkles size={18} />
+                  项目概览
+                </h2>
+                {!isEditing && (
+                  <button
+                    className="btn-ghost"
+                    onClick={() => setIsEditing(true)}
+                    disabled={isLoading}
+                  >
+                    编辑信息
+                  </button>
+                )}
+              </div>
 
-            <div className="project-info-card">
-              {!isEditing ? (
-                <div className="project-info-content">
-                  <div className="info-grid">
-                    <div className="info-item">
-                      <div className="info-label">项目名称</div>
-                      <div className="info-value">{project.name}</div>
+              <div className="project-info-card">
+                {!isEditing ? (
+                  <div className="project-info-content">
+                    <div className="info-grid">
+                      <div className="info-item">
+                        <div className="info-label">项目名称</div>
+                        <div className="info-value">{project.name}</div>
+                      </div>
+                      <div className="info-item">
+                        <div className="info-label">项目描述</div>
+                        <div className="info-value">{project.description || '暂无描述'}</div>
+                      </div>
                     </div>
-                    <div className="info-item">
-                      <div className="info-label">项目描述</div>
-                      <div className="info-value">{project.description || '暂无描述'}</div>
-                    </div>
-                    <div className="info-item">
-                      <div className="info-label">API Key</div>
-                      <div className="info-value api-key-display">
-                        <Key size={14} />
-                        <span>{maskApiKey(project.llmApiKey)}</span>
+                    <div className="meta-row">
+                      <div className="meta-item">
+                        <Calendar size={14} />
+                        <span>创建于 {new Date(project.createdAt).toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' })}</span>
+                      </div>
+                      <div className="meta-item">
+                        <Clock size={14} />
+                        <span>更新于 {new Date(project.updatedAt).toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' })}</span>
                       </div>
                     </div>
                   </div>
-                  <div className="meta-row">
-                    <div className="meta-item">
-                      <Calendar size={14} />
-                      <span>创建于 {new Date(project.createdAt).toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' })}</span>
+                ) : (
+                  <div className="project-info-edit">
+                    <div className="form-grid">
+                      <div className="form-group full-width">
+                        <label htmlFor="project-name">项目名称</label>
+                        <input
+                          id="project-name"
+                          type="text"
+                          value={editProject.name}
+                          onChange={(e) =>
+                            setEditProject({ ...editProject, name: e.target.value })
+                          }
+                          placeholder="请输入项目名称"
+                          disabled={isLoading}
+                        />
+                      </div>
+                      <div className="form-group full-width">
+                        <label htmlFor="project-description">项目描述</label>
+                        <textarea
+                          id="project-description"
+                          value={editProject.description}
+                          onChange={(e) =>
+                            setEditProject({ ...editProject, description: e.target.value })
+                          }
+                          placeholder="请输入项目描述"
+                          rows={2}
+                          disabled={isLoading}
+                        />
+                      </div>
                     </div>
-                    <div className="meta-item">
-                      <Clock size={14} />
-                      <span>更新于 {new Date(project.updatedAt).toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' })}</span>
+                    <div className="form-actions">
+                      <button
+                        className="btn-secondary"
+                        onClick={() => {
+                          setIsEditing(false);
+                          setEditProject({
+                            name: project.name,
+                            description: project.description,
+                          });
+                        }}
+                        disabled={isLoading}
+                      >
+                        <X size={16} />
+                        取消
+                      </button>
+                      <button
+                        className="btn-primary"
+                        onClick={handleSaveProject}
+                        disabled={isLoading}
+                      >
+                        <Save size={16} />
+                        保存更改
+                      </button>
                     </div>
                   </div>
+                )}
+              </div>
+            </section>
+
+            {/* API Key 配置卡片 - 占2行 */}
+            <section className="api-key-section">
+              <div className="section-header">
+                <h2>
+                  <Key size={18} />
+                  基础配置
+                </h2>
+              </div>
+
+              <div className="api-key-card">
+                {/* 文本大模型 API Key */}
+                <div className="api-key-item">
+                  <div className="api-key-header">
+                    <h3>文本大模型</h3>
+                  </div>
+                  {!isEditingLLMApiKey ? (
+                    <div className="api-key-status-row">
+                      <div className={`status-indicator ${project.llmApiKey ? 'active' : 'inactive'}`}>
+                        {project.llmApiKey ? '已配置' : '未配置'}
+                      </div>
+                      {project.llmApiKey && (
+                        <span className="api-key-masked">{maskApiKey(project.llmApiKey)}</span>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="api-key-edit-row">
+                      <div className="form-group">
+                        <input
+                          type="password"
+                          value={editLLMApiKey}
+                          onChange={(e) => setEditLLMApiKey(e.target.value)}
+                          placeholder="请输入文本大模型 API Key"
+                          disabled={isSavingLLMApiKey}
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
-              ) : (
-                <div className="project-info-edit">
-                  <div className="form-grid">
-                    <div className="form-group full-width">
-                      <label htmlFor="project-name">项目名称</label>
-                      <input
-                        id="project-name"
-                        type="text"
-                        value={editProject.name}
-                        onChange={(e) =>
-                          setEditProject({ ...editProject, name: e.target.value })
-                        }
-                        placeholder="请输入项目名称"
-                        disabled={isLoading}
-                      />
-                    </div>
-                    <div className="form-group full-width">
-                      <label htmlFor="project-description">项目描述</label>
-                      <textarea
-                        id="project-description"
-                        value={editProject.description}
-                        onChange={(e) =>
-                          setEditProject({ ...editProject, description: e.target.value })
-                        }
-                        placeholder="请输入项目描述"
-                        rows={3}
-                        disabled={isLoading}
-                      />
-                    </div>
+
+                <div className="api-key-divider"></div>
+
+                {/* 语音大模型 API Key */}
+                <div className="api-key-item">
+                  <div className="api-key-header">
+                    <h3>语音大模型</h3>
                   </div>
-                  <div className="form-actions">
+                  {!isEditingTTSApiKey ? (
+                    <div className="api-key-status-row">
+                      <div className={`status-indicator ${project.ttsApiKey ? 'active' : 'inactive'}`}>
+                        {project.ttsApiKey ? '已配置' : '未配置'}
+                      </div>
+                      {project.ttsApiKey && (
+                        <span className="api-key-masked">{maskApiKey(project.ttsApiKey)}</span>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="api-key-edit-row">
+                      <div className="form-group">
+                        <input
+                          type="password"
+                          value={editTTSApiKey}
+                          onChange={(e) => setEditTTSApiKey(e.target.value)}
+                          placeholder="请输入语音大模型 API Key"
+                          disabled={isSavingTTSApiKey}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* 编辑按钮 */}
+                <div className="api-key-actions">
+                  {(!isEditingLLMApiKey && !isEditingTTSApiKey) ? (
                     <button
-                      className="btn-secondary"
+                      className="btn-ghost"
                       onClick={() => {
-                        setIsEditing(false);
-                        setEditProject({
-                          name: project.name,
-                          description: project.description,
-                        });
+                        setIsEditingLLMApiKey(true);
+                        setIsEditingTTSApiKey(true);
                       }}
                       disabled={isLoading}
                     >
-                      <X size={16} />
-                      取消
+                      编辑配置
                     </button>
-                    <button
-                      className="btn-primary"
-                      onClick={handleSaveProject}
-                      disabled={isLoading}
-                    >
-                      <Save size={16} />
-                      保存更改
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          </section>
-
-          {/* API Key 配置卡片 */}
-          <section className="api-key-section">
-            <div className="section-header">
-              <h2>
-                <Key size={18} />
-                文本大模型 API Key
-              </h2>
-              {!isEditingApiKey && (
-                <button
-                  className="btn-ghost"
-                  onClick={() => setIsEditingApiKey(true)}
-                  disabled={isLoading}
-                >
-                  配置
-                </button>
-              )}
-            </div>
-
-            <div className="api-key-card">
-              {!isEditingApiKey ? (
-                <div className="api-key-content">
-                  <div className="api-key-description">
-                    <p>在此项目中使用自定义的 API Key 来调用文本大模型服务。如果未设置，将使用系统默认配置。</p>
-                  </div>
-                  <div className="api-key-status">
-                    <div className={`status-indicator ${project.llmApiKey ? 'active' : 'inactive'}`}>
-                      {project.llmApiKey ? '已配置' : '未配置'}
+                  ) : (
+                    <div className="form-actions">
+                      <button
+                        className="btn-secondary"
+                        onClick={() => {
+                          setIsEditingLLMApiKey(false);
+                          setIsEditingTTSApiKey(false);
+                          setEditLLMApiKey(project.llmApiKey || '');
+                          setEditTTSApiKey(project.ttsApiKey || '');
+                        }}
+                        disabled={isSavingLLMApiKey || isSavingTTSApiKey}
+                      >
+                        <X size={16} />
+                        取消
+                      </button>
+                      <button
+                        className="btn-primary"
+                        onClick={async () => {
+                          if (isEditingLLMApiKey) await handleSaveLLMApiKey();
+                          if (isEditingTTSApiKey) await handleSaveTTSApiKey();
+                        }}
+                        disabled={isSavingLLMApiKey || isSavingTTSApiKey}
+                      >
+                        <Save size={16} />
+                        {(isSavingLLMApiKey || isSavingTTSApiKey) ? '保存中...' : '保存'}
+                      </button>
                     </div>
-                    {project.llmApiKey && (
-                      <span className="api-key-masked">{maskApiKey(project.llmApiKey)}</span>
-                    )}
-                  </div>
+                  )}
                 </div>
-              ) : (
-                <div className="api-key-edit">
-                  <div className="form-group">
-                    <label htmlFor="llm-api-key">API Key</label>
-                    <input
-                      id="llm-api-key"
-                      type="password"
-                      value={editApiKey}
-                      onChange={(e) => setEditApiKey(e.target.value)}
-                      placeholder="请输入文本大模型 API Key"
-                      disabled={isSavingApiKey}
-                    />
-                    <p className="help-text">输入火山引擎文本大模型 API Key</p>
-                  </div>
-                  <div className="form-actions">
-                    <button
-                      className="btn-secondary"
-                      onClick={() => {
-                        setIsEditingApiKey(false);
-                        setEditApiKey(project.llmApiKey || '');
-                      }}
-                      disabled={isSavingApiKey}
-                    >
-                      <X size={16} />
-                      取消
-                    </button>
-                    <button
-                      className="btn-primary"
-                      onClick={handleSaveApiKey}
-                      disabled={isSavingApiKey}
-                    >
-                      <Save size={16} />
-                      {isSavingApiKey ? '保存中...' : '保存'}
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          </section>
+              </div>
+            </section>
 
-          {/* 角色管理区域 */}
-          <section className="character-section">
-            <div className="section-header">
-              <h2>
-                <Users size={18} />
-                角色管理
-              </h2>
-            </div>
-            <div className="role-manager-wrapper">
-              <RoleManager projectId={parseInt(id || '0')} />
-            </div>
-          </section>
+            {/* 角色管理 */}
+            <section className="character-section">
+              <div className="section-header">
+                <h2>
+                  <Users size={18} />
+                  角色管理
+                </h2>
+              </div>
+              <div className="role-manager-wrapper">
+                <RoleManager projectId={parseInt(id || '0')} />
+              </div>
+            </section>
+          </div>
 
-          {/* 章节管理区域 */}
-          <section className="chapter-section">
-            <div className="section-header">
-              <h2>
-                <BookOpen size={18} />
-                章节管理
-              </h2>
-            </div>
-            <div className="chapter-manager-wrapper">
-              <ChapterManager projectId={parseInt(id || '0')} />
-            </div>
-          </section>
+          {/* 右侧列：章节管理 - 占2/3 */}
+          <div className="right-column">
+            <section className="chapter-section">
+              <div className="section-header">
+                <h2>
+                  <BookOpen size={18} />
+                  章节管理
+                </h2>
+              </div>
+              <div className="chapter-manager-wrapper">
+                <ChapterManager projectId={parseInt(id || '0')} />
+              </div>
+            </section>
+          </div>
         </div>
       </main>
 
@@ -456,14 +513,65 @@ const ProjectDetailsPage: React.FC = () => {
         .main-content {
           flex: 1;
           overflow-y: auto;
+          overflow-x: hidden;
           min-height: 0;
         }
 
         .content-wrapper {
-          max-width: 1400px;
-          margin: 0 auto;
+          max-width: none;
+          margin: 0;
           padding: 20px;
           width: 100%;
+          min-height: 100%;
+          display: grid;
+          grid-template-columns: minmax(320px, 1fr) minmax(480px, 2fr);
+          gap: 20px;
+          align-items: start;
+        }
+
+        /* 左侧列 */
+        .left-column {
+          display: flex;
+          flex-direction: column;
+          gap: 20px;
+          min-width: 0;
+        }
+
+        /* 右侧列 */
+        .right-column {
+          display: flex;
+          flex-direction: column;
+          gap: 20px;
+          min-width: 0;
+          min-height: 600px;
+        }
+
+        /* 低DPI兼容性 */
+        @media (max-width: 1200px) {
+          .content-wrapper {
+            grid-template-columns: 1fr;
+            padding: 16px;
+            gap: 16px;
+          }
+
+          .right-column {
+            min-height: 500px;
+          }
+        }
+
+        @media (max-width: 768px) {
+          .content-wrapper {
+            padding: 12px;
+            gap: 12px;
+          }
+
+          .header-inner {
+            padding: 10px 16px;
+          }
+
+          .project-title h1 {
+            font-size: 1rem;
+          }
         }
 
         /* 区块通用样式 */
@@ -488,7 +596,14 @@ const ProjectDetailsPage: React.FC = () => {
         .api-key-section,
         .character-section,
         .chapter-section {
-          margin-bottom: 20px;
+          margin-bottom: 0;
+        }
+
+        .character-section {
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          min-height: 0;
         }
 
         /* 角色管理容器 */
@@ -498,6 +613,9 @@ const ProjectDetailsPage: React.FC = () => {
           border-radius: 12px;
           overflow: hidden;
           box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+          min-height: 400px;
+          display: flex;
+          flex-direction: column;
         }
 
         /* 项目信息卡片 */
@@ -517,28 +635,31 @@ const ProjectDetailsPage: React.FC = () => {
 
         .info-grid {
           display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+          grid-template-columns: 1fr;
           gap: 16px;
         }
 
         .info-item {
           display: flex;
-          flex-direction: column;
-          gap: 6px;
+          flex-direction: row;
+          align-items: flex-start;
+          gap: 12px;
         }
 
         .info-label {
-          font-size: 0.78rem;
+          font-size: 0.85rem;
           font-weight: 500;
           color: #64748B;
-          text-transform: uppercase;
-          letter-spacing: 0.5px;
+          flex-shrink: 0;
+          width: 80px;
         }
 
         .info-value {
-          font-size: 0.95rem;
+          font-size: 0.9rem;
           color: #E2E8F0;
           line-height: 1.5;
+          flex: 1;
+          min-width: 0;
         }
 
         .api-key-display {
@@ -553,7 +674,8 @@ const ProjectDetailsPage: React.FC = () => {
 
         .meta-row {
           display: flex;
-          gap: 16px;
+          flex-direction: column;
+          gap: 8px;
           padding-top: 12px;
           border-top: 1px solid #2D3E54;
         }
@@ -579,23 +701,64 @@ const ProjectDetailsPage: React.FC = () => {
           box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
         }
 
-        .api-key-content {
+        .api-key-item {
           display: flex;
-          flex-direction: column;
+          flex-direction: row;
+          align-items: center;
+          justify-content: space-between;
           gap: 12px;
         }
 
-        .api-key-description p {
-          margin: 0;
-          color: #94A3B8;
-          font-size: 0.9rem;
-          line-height: 1.6;
+        .api-key-header {
+          display: flex;
+          align-items: center;
+          margin-bottom: 0;
+          gap: 12px;
+          flex-shrink: 0;
         }
 
-        .api-key-status {
+        .api-key-header h3 {
+          margin: 0;
+          font-size: 0.85rem;
+          font-weight: 500;
+          color: #64748B;
+          width: 90px;
+        }
+
+        .api-key-status-row {
           display: flex;
           align-items: center;
           gap: 12px;
+          flex: 1;
+          justify-content: flex-end;
+        }
+
+        .api-key-edit-row {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          flex: 1;
+        }
+
+        .api-key-edit-row .form-group {
+          flex: 1;
+          flex-direction: row;
+          align-items: center;
+          gap: 0;
+        }
+
+        .api-key-divider {
+          height: 1px;
+          background: linear-gradient(to right, transparent, #2D3E54, transparent);
+          margin: 16px 0;
+        }
+
+        .api-key-actions {
+          display: flex;
+          justify-content: flex-end;
+          padding-top: 12px;
+          border-top: 1px solid #2D3E54;
+          margin-top: 8px;
         }
 
         .status-indicator {
@@ -603,6 +766,7 @@ const ProjectDetailsPage: React.FC = () => {
           border-radius: 6px;
           font-size: 0.8rem;
           font-weight: 500;
+          flex-shrink: 0;
         }
 
         .status-indicator.active {
@@ -619,12 +783,6 @@ const ProjectDetailsPage: React.FC = () => {
           color: #00A8FF;
           font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
           font-size: 0.85rem;
-        }
-
-        .api-key-edit {
-          display: flex;
-          flex-direction: column;
-          gap: 12px;
         }
 
         .help-text {
@@ -671,6 +829,7 @@ const ProjectDetailsPage: React.FC = () => {
           color: #E2E8F0;
           font-size: 0.9rem;
           transition: all 0.2s ease;
+          width: 100%;
         }
 
         .form-group input:focus,
@@ -699,6 +858,27 @@ const ProjectDetailsPage: React.FC = () => {
           border-radius: 12px;
           overflow: hidden;
           box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+          min-height: 600px;
+          display: flex;
+          flex-direction: column;
+        }
+
+        /* 滚动条样式 */
+        .main-content::-webkit-scrollbar {
+          width: 10px;
+        }
+
+        .main-content::-webkit-scrollbar-track {
+          background: #151E2B;
+        }
+
+        .main-content::-webkit-scrollbar-thumb {
+          background: #334155;
+          border-radius: 5px;
+        }
+
+        .main-content::-webkit-scrollbar-thumb:hover {
+          background: #475569;
         }
 
         /* 按钮样式 */

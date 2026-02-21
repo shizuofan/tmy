@@ -41,3 +41,8 @@ func (c *CharacterController) UpdateCharacter(id int64, name, description, voice
 func (c *CharacterController) DeleteCharacter(id int64) error {
 	return c.service.DeleteCharacter(id)
 }
+
+// UpdateNarratorVoice 更新旁白音色
+func (c *CharacterController) UpdateNarratorVoice(projectID int64, voiceID string) error {
+	return c.service.UpdateNarratorVoice(projectID, voiceID)
+}
