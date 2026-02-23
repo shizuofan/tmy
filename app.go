@@ -130,6 +130,11 @@ func (a *App) SetKnownCharacterVoice(projectID int64, characterName string, voic
 	return a.projectController.SetKnownCharacterVoice(projectID, characterName, voiceID)
 }
 
+// UpdateKnownCharacter 更新已知角色的完整信息（性别、年龄、别名、简介）
+func (a *App) UpdateKnownCharacter(projectID int64, characterName string, description string, gender string, age string, aliases []string) error {
+	return a.projectController.UpdateKnownCharacter(projectID, characterName, description, gender, age, aliases)
+}
+
 // ========== 章节相关方法 ==========
 
 // CreateChapter 创建章节
@@ -209,6 +214,33 @@ func (a *App) SplitParagraph(chapterID int64) ([]*models.Paragraph, error) {
 // SplitParagraphPreview 调用 LLM 拆分章节文本为段落（仅预览）
 func (a *App) SplitParagraphPreview(content string) ([]*models.Paragraph, error) {
 	return a.chapterController.SplitParagraphPreview(content)
+}
+
+// ========== TTS 相关方法 ==========
+
+// SetTTSConfig 设置 TTS 配置
+func (a *App) SetTTSConfig(apiKey, endpoint, appID string) {
+	a.chapterController.SetTTSConfig(apiKey, endpoint, appID)
+}
+
+// GetTTSConfig 获取 TTS 配置
+func (a *App) GetTTSConfig() utils.TTSConfig {
+	return a.chapterController.GetTTSConfig()
+}
+
+// GenerateParagraphAudio 生成单个段落的音频
+func (a *App) GenerateParagraphAudio(paragraphID int64) (*models.Paragraph, error) {
+	return a.chapterController.GenerateParagraphAudio(paragraphID)
+}
+
+// GenerateBatchAudio 批量生成段落音频
+func (a *App) GenerateBatchAudio(paragraphIDs []int64) ([]*models.Paragraph, error) {
+	return a.chapterController.GenerateBatchAudio(paragraphIDs)
+}
+
+// GenerateChapterAudio 生成整个章节的音频
+func (a *App) GenerateChapterAudio(chapterID int64) ([]*models.Paragraph, error) {
+	return a.chapterController.GenerateChapterAudio(chapterID)
 }
 
 // ========== 角色相关方法 ==========

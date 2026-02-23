@@ -1,22 +1,40 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Trash2,
   Bot,
-  Sparkles,
   Volume2,
+  Edit2,
+  X,
+  Search,
+  ChevronLeft,
+  ChevronRight,
+  User,
+  Calendar,
+  Users,
   BookOpen,
+  Clock,
 } from 'lucide-react';
 import api from '../utils/api';
-import { Character, Voice } from '../types';
+import { Character, Voice, GenderNameMap, AgeNameMap, GenderMale, GenderFemale, GenderUnknown, AgeChild, AgeTeen, AgeAdult, AgeSenior, AgeUnknown } from '../types';
 
 interface RoleManagerProps {
   projectId: number;
 }
 
+// 每页显示数量
+const PAGE_SIZE = 10;
+
 const RoleManager: React.FC<RoleManagerProps> = ({ projectId }) => {
   const [characters, setCharacters] = useState<Character[]>([]);
   const [voices, setVoices] = useState<Voice[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [editingCharacterId, setEditingCharacterId] = useState<number | null>(null);
+  const [editingAliases, setEditingAliases] = useState<string>('');
+  const [editingGender, setEditingGender] = useState<string>('');
+  const [editingAge, setEditingAge] = useState<string>('');
+  const [editingDescription, setEditingDescription] = useState<string>('');
 
   // 加载角色列表和音色列表
   useEffect(() => {
@@ -24,6 +42,11 @@ const RoleManager: React.FC<RoleManagerProps> = ({ projectId }) => {
       loadData();
     }
   }, [projectId]);
+
+  // 搜索时重置页码
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery]);
 
   const loadData = async () => {
     setIsLoading(true);
@@ -40,13 +63,58 @@ const RoleManager: React.FC<RoleManagerProps> = ({ projectId }) => {
     setIsLoading(false);
   };
 
+  // 过滤和排序后的角色列表
+  const filteredCharacters = useMemo(() => {
+    let filtered = characters;
+
+    // 搜索过滤
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase().trim();
+      filtered = filtered.filter((c) => {
+        // 匹配姓名
+        if (c.name.toLowerCase().includes(query)) return true;
+        // 匹配别名
+        if (c.aliases && c.aliases.some((a) => a.toLowerCase().includes(query))) return true;
+        // 匹配简介
+        if (c.description && c.description.toLowerCase().includes(query)) return true;
+        return false;
+      });
+    }
+
+    // 按最后更新时间逆序排列（lastSeenAt 从大到小）
+    filtered.sort((a, b) => {
+      const aTime = (a as any).lastSeenAt || 0;
+      const bTime = (b as any).lastSeenAt || 0;
+      return bTime - aTime;
+    });
+
+    return filtered;
+  }, [characters, searchQuery]);
+
+  // 分页数据
+  const totalPages = Math.ceil(filteredCharacters.length / PAGE_SIZE);
+  const paginatedCharacters = useMemo(() => {
+    const start = (currentPage - 1) * PAGE_SIZE;
+    const end = start + PAGE_SIZE;
+    return filteredCharacters.slice(start, end);
+  }, [filteredCharacters, currentPage]);
+
   const handleDeleteCharacter = async (characterId: number) => {
     // 旁白角色不能删除
     if (characterId === 0) return;
 
     setIsLoading(true);
     try {
-      await api.deleteCharacter(characterId);
+      if (characterId < 0) {
+        // knownCharacters中的角色
+        const char = characters.find((c) => c.id === characterId);
+        if (char) {
+          await api.deleteProjectKnownCharacter(projectId, char.name);
+        }
+      } else {
+        // 数据库中的角色
+        await api.deleteCharacter(characterId);
+      }
       loadData();
     } catch (error) {
       console.error('Failed to delete character:', error);
@@ -57,19 +125,23 @@ const RoleManager: React.FC<RoleManagerProps> = ({ projectId }) => {
   const handleVoiceChange = async (characterId: number, voiceId: string) => {
     try {
       // 更新本地状态
-      setCharacters(prev =>
-        prev.map(c =>
-          c.id === characterId ? { ...c, voiceId } : c
-        )
+      setCharacters((prev) =>
+        prev.map((c) => (c.id === characterId ? { ...c, voiceId } : c))
       );
 
       // 保存到后端
       if (characterId === 0) {
         // 旁白角色特殊处理
         await api.updateNarratorVoice(projectId, voiceId);
+      } else if (characterId < 0) {
+        // knownCharacters中的角色
+        const char = characters.find((c) => c.id === characterId);
+        if (char) {
+          await api.setKnownCharacterVoice(projectId, char.name, voiceId);
+        }
       } else {
-        // 普通角色
-        const char = characters.find(c => c.id === characterId);
+        // 数据库中的普通角色
+        const char = characters.find((c) => c.id === characterId);
         if (char) {
           await api.updateCharacter(characterId, char.name, char.description, voiceId);
         }
@@ -81,9 +153,108 @@ const RoleManager: React.FC<RoleManagerProps> = ({ projectId }) => {
     }
   };
 
+  const startEditCharacter = (character: Character) => {
+    setEditingCharacterId(character.id);
+    setEditingAliases((character.aliases || []).join(', '));
+    setEditingGender(character.gender || '');
+    setEditingAge(character.age || '');
+    setEditingDescription(character.description || '');
+  };
+
+  const saveEditCharacter = async (character: Character) => {
+    try {
+      const aliasesArray = editingAliases
+        .split(',')
+        .map((a) => a.trim())
+        .filter((a) => a.length > 0);
+
+      // 更新本地状态
+      setCharacters((prev) =>
+        prev.map((c) =>
+          c.id === character.id
+            ? {
+                ...c,
+                description: editingDescription,
+                gender: editingGender,
+                age: editingAge,
+                aliases: aliasesArray,
+              }
+            : c
+        )
+      );
+
+      // 保存到后端
+      if (character.id < 0) {
+        // knownCharacters中的角色
+        await api.updateKnownCharacter(
+          projectId,
+          character.name,
+          editingDescription,
+          editingGender,
+          editingAge,
+          aliasesArray
+        );
+      } else {
+        // 数据库中的普通角色
+        await api.updateCharacter(
+          character.id,
+          character.name,
+          editingDescription,
+          character.voiceId
+        );
+      }
+
+      cancelEditCharacter();
+    } catch (error) {
+      console.error('Failed to save character:', error);
+      // 回滚本地状态
+      loadData();
+    }
+  };
+
+  const cancelEditCharacter = () => {
+    setEditingCharacterId(null);
+    setEditingAliases('');
+    setEditingGender('');
+    setEditingAge('');
+    setEditingDescription('');
+  };
+
   const getVoiceName = (voiceId: string): string => {
-    const voice = voices.find(v => v.id === voiceId);
+    const voice = voices.find((v) => v.id === voiceId);
     return voice ? voice.name : '未设置';
+  };
+
+  const displayGender = (gender: string): string => {
+    return GenderNameMap[gender] || '未知';
+  };
+
+  const displayAge = (age: string): string => {
+    return AgeNameMap[age] || '未知';
+  };
+
+  const displayAliases = (aliases: string[]): string => {
+    if (!aliases || aliases.length === 0) return '-';
+    return aliases.join(', ');
+  };
+
+  const displayChapters = (chapterNames: string[]): string => {
+    if (!chapterNames || chapterNames.length === 0) return '-';
+    if (chapterNames.length <= 2) {
+      return chapterNames.join(', ');
+    }
+    return `${chapterNames[0]}, ${chapterNames[1]}... (${chapterNames.length}章)`;
+  };
+
+  const displayLastSeen = (timestamp: number): string => {
+    if (!timestamp) return '-';
+    const date = new Date(timestamp * 1000);
+    return date.toLocaleString('zh-CN', {
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
   };
 
   return (
@@ -92,80 +263,275 @@ const RoleManager: React.FC<RoleManagerProps> = ({ projectId }) => {
         <div className="header-left">
           <Bot size={20} />
           <h2>角色管理</h2>
-          {characters.length > 0 && (
-            <span className="count-badge">{characters.length}</span>
+          {filteredCharacters.length > 0 && (
+            <span className="count-badge">{filteredCharacters.length}</span>
+          )}
+        </div>
+
+        {/* 搜索框 */}
+        <div className="search-box">
+          <Search size={16} />
+          <input
+            type="text"
+            placeholder="搜索角色名称、别名或简介..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="search-input"
+          />
+          {searchQuery && (
+            <button
+              className="btn-clear-search"
+              onClick={() => setSearchQuery('')}
+            >
+              <X size={14} />
+            </button>
           )}
         </div>
       </div>
 
-      <div className="role-list">
+      <div className="role-table-container">
         {isLoading && characters.length === 0 ? (
           <div className="loading-state">
             <div className="spinner"></div>
             <p>加载中...</p>
           </div>
-        ) : characters.length === 0 ? (
+        ) : filteredCharacters.length === 0 ? (
           <div className="empty-state">
             <Bot size={48} />
             <h3>暂无角色</h3>
             <p>使用 LLM 解析文本后，识别到的角色会显示在这里</p>
           </div>
         ) : (
-          <div className="role-grid">
-            {characters.map((character) => (
-              <div key={`${character.id}-${character.name}`} className={`role-card ${character.id === 0 ? 'narrator-card' : 'known-character-card'}`}>
-                <div className={`role-avatar ${character.id === 0 ? 'narrator-avatar' : 'known-avatar'}`}>
-                  {character.id === 0 ? <BookOpen size={28} /> : <Bot size={28} />}
-                </div>
-                <div className="role-info">
-                  <h4>{character.name}</h4>
-                  {character.description && (
-                    <p className="role-description">{character.description}</p>
-                  )}
-                  <div className="voice-select-row">
-                    <Volume2 size={14} />
-                    <select
-                      className="voice-select"
-                      value={character.voiceId || ''}
-                      onChange={(e) => handleVoiceChange(character.id, e.target.value)}
-                      disabled={isLoading}
-                    >
-                      <option value="">选择音色</option>
-                      {voices.map((voice) => (
-                        <option key={voice.id} value={voice.id}>
-                          {voice.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  {character.id !== 0 && (
-                    <div className="known-badge">
-                      <Sparkles size={12} />
-                      <span>AI 识别</span>
-                    </div>
-                  )}
-                  {character.id === 0 && (
-                    <div className="narrator-badge">
-                      <BookOpen size={12} />
-                      <span>系统角色</span>
-                    </div>
-                  )}
-                </div>
-                <div className="role-actions">
-                  {character.id !== 0 && (
-                    <button
-                      className="btn-icon btn-danger"
-                      onClick={() => handleDeleteCharacter(character.id)}
-                      disabled={isLoading}
-                      title="删除"
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  )}
-                </div>
+          <>
+            {/* 角色表格 */}
+            <table className="role-table">
+              <thead>
+                <tr>
+                  <th className="col-name">姓名</th>
+                  <th className="col-chapters">出现章节</th>
+                  <th className="col-aliases">别名</th>
+                  <th className="col-gender">推测性别</th>
+                  <th className="col-age">推测年龄</th>
+                  <th className="col-voice">音色</th>
+                  <th className="col-desc">简介</th>
+                  <th className="col-updated">最后发现</th>
+                  <th className="col-actions">操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                {paginatedCharacters.map((character) => (
+                  <React.Fragment key={`${character.id}-${character.name}`}>
+                    <tr className={character.id === 0 ? 'narrator-row' : 'character-row'}>
+                      <td className="col-name">
+                        <div className="name-cell">
+                          <div
+                            className={`role-avatar-small ${
+                              character.id === 0 ? 'narrator-avatar' : 'known-avatar'
+                            }`}
+                          >
+                            {character.id === 0 ? (
+                              <BookOpen size={14} />
+                            ) : (
+                              <User size={14} />
+                            )}
+                          </div>
+                          <span className="character-name">{character.name}</span>
+                          {character.id === 0 && (
+                            <span className="badge narrator-badge">系统</span>
+                          )}
+                          {character.id !== 0 && character.id < 0 && (
+                            <span className="badge ai-badge">AI识别</span>
+                          )}
+                        </div>
+                      </td>
+
+                      <td className="col-chapters">
+                        <span
+                          className="chapter-list"
+                          title={(character as any).chapterNames?.join(', ')}
+                        >
+                          {displayChapters((character as any).chapterNames)}
+                        </span>
+                      </td>
+
+                      <td className="col-aliases">
+                        {editingCharacterId === character.id ? (
+                          <input
+                            type="text"
+                            className="edit-input-inline"
+                            value={editingAliases}
+                            onChange={(e) => setEditingAliases(e.target.value)}
+                            placeholder="多个别名用逗号分隔"
+                          />
+                        ) : (
+                          <span
+                            className="alias-list"
+                            title={displayAliases(character.aliases)}
+                          >
+                            {displayAliases(character.aliases)}
+                          </span>
+                        )}
+                      </td>
+
+                      <td className="col-gender">
+                        {editingCharacterId === character.id ? (
+                          <select
+                            className="edit-select-inline"
+                            value={editingGender}
+                            onChange={(e) => setEditingGender(e.target.value)}
+                          >
+                            <option value="">选择性别</option>
+                            <option value={GenderMale}>男</option>
+                            <option value={GenderFemale}>女</option>
+                            <option value={GenderUnknown}>未知</option>
+                          </select>
+                        ) : (
+                          <span className="gender-badge">
+                            <User size={12} />
+                            {displayGender(character.gender)}
+                          </span>
+                        )}
+                      </td>
+
+                      <td className="col-age">
+                        {editingCharacterId === character.id ? (
+                          <select
+                            className="edit-select-inline"
+                            value={editingAge}
+                            onChange={(e) => setEditingAge(e.target.value)}
+                          >
+                            <option value="">选择年龄段</option>
+                            <option value={AgeChild}>儿童</option>
+                            <option value={AgeTeen}>少年</option>
+                            <option value={AgeAdult}>成人</option>
+                            <option value={AgeSenior}>老年</option>
+                            <option value={AgeUnknown}>未知</option>
+                          </select>
+                        ) : (
+                          <span className="age-badge">
+                            <Calendar size={12} />
+                            {displayAge(character.age)}
+                          </span>
+                        )}
+                      </td>
+
+                      <td className="col-voice">
+                        <div className="voice-select-cell">
+                          <Volume2 size={14} />
+                          <select
+                            className="voice-select-inline"
+                            value={character.voiceId || ''}
+                            onChange={(e) => handleVoiceChange(character.id, e.target.value)}
+                            disabled={isLoading}
+                          >
+                            <option value="">选择音色</option>
+                            {voices.map((voice) => (
+                              <option key={voice.id} value={voice.id}>
+                                {voice.name}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      </td>
+
+                      <td className="col-desc">
+                        {editingCharacterId === character.id ? (
+                          <input
+                            type="text"
+                            className="edit-input-inline"
+                            value={editingDescription}
+                            onChange={(e) => setEditingDescription(e.target.value)}
+                            placeholder="角色简介"
+                          />
+                        ) : (
+                          <span
+                            className="description-text"
+                            title={character.description}
+                          >
+                            {character.description || '-'}
+                          </span>
+                        )}
+                      </td>
+
+                      <td className="col-updated">
+                        <span className="last-seen">
+                          <Clock size={12} />
+                          {displayLastSeen((character as any).lastSeenAt)}
+                        </span>
+                      </td>
+
+                      <td className="col-actions">
+                        {editingCharacterId === character.id ? (
+                          <div className="edit-actions-inline">
+                            <button
+                              className="btn-ghost btn-small"
+                              onClick={cancelEditCharacter}
+                            >
+                              <X size={12} />
+                            </button>
+                            <button
+                              className="btn-primary btn-small"
+                              onClick={() => saveEditCharacter(character)}
+                            >
+                              <Edit2 size={12} />
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="actions-cell">
+                            {character.id !== 0 && (
+                              <>
+                                <button
+                                  className="btn-icon btn-edit"
+                                  onClick={() => startEditCharacter(character)}
+                                  disabled={isLoading}
+                                  title="编辑"
+                                >
+                                  <Edit2 size={14} />
+                                </button>
+                                <button
+                                  className="btn-icon btn-danger"
+                                  onClick={() => handleDeleteCharacter(character.id)}
+                                  disabled={isLoading}
+                                  title="删除"
+                                >
+                                  <Trash2 size={14} />
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  </React.Fragment>
+                ))}
+              </tbody>
+            </table>
+
+            {/* 分页器 */}
+            {totalPages > 1 && (
+              <div className="pagination">
+                <button
+                  className="btn-page"
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                >
+                  <ChevronLeft size={16} />
+                </button>
+
+                <span className="page-info">
+                  第 {currentPage} / {totalPages} 页
+                </span>
+
+                <button
+                  className="btn-page"
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                >
+                  <ChevronRight size={16} />
+                </button>
               </div>
-            ))}
-          </div>
+            )}
+          </>
         )}
       </div>
 
@@ -186,6 +552,7 @@ const RoleManager: React.FC<RoleManagerProps> = ({ projectId }) => {
           padding: 16px 20px;
           background: linear-gradient(135deg, #1E2A3A 0%, #1A2432 100%);
           border-bottom: 1px solid #2D3E54;
+          gap: 16px;
         }
 
         .header-left {
@@ -193,6 +560,7 @@ const RoleManager: React.FC<RoleManagerProps> = ({ projectId }) => {
           align-items: center;
           gap: 10px;
           color: #CBD5E1;
+          flex-shrink: 0;
         }
 
         .header-left h2 {
@@ -202,7 +570,6 @@ const RoleManager: React.FC<RoleManagerProps> = ({ projectId }) => {
         }
 
         .count-badge {
-          margin-left: 8px;
           padding: 2px 10px;
           background: #10B981;
           color: white;
@@ -211,10 +578,65 @@ const RoleManager: React.FC<RoleManagerProps> = ({ projectId }) => {
           font-weight: 600;
         }
 
-        .role-list {
+        .search-box {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          background-color: #151E2B;
+          border: 1px solid #2D3E54;
+          border-radius: 8px;
+          padding: 6px 12px;
           flex: 1;
-          overflow-y: auto;
-          padding: 16px;
+          max-width: 400px;
+          transition: all 0.2s ease;
+        }
+
+        .search-box:focus-within {
+          border-color: #00A8FF;
+          box-shadow: 0 0 0 2px rgba(0, 168, 255, 0.2);
+        }
+
+        .search-box svg {
+          color: #64748B;
+          flex-shrink: 0;
+        }
+
+        .search-input {
+          flex: 1;
+          background: transparent;
+          border: none;
+          color: #E2E8F0;
+          font-size: 0.9rem;
+          outline: none;
+        }
+
+        .search-input::placeholder {
+          color: #64748B;
+        }
+
+        .btn-clear-search {
+          background: transparent;
+          border: none;
+          color: #64748B;
+          cursor: pointer;
+          padding: 2px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border-radius: 4px;
+          transition: all 0.2s ease;
+        }
+
+        .btn-clear-search:hover {
+          background: rgba(255, 255, 255, 0.1);
+          color: #E2E8F0;
+        }
+
+        .role-table-container {
+          flex: 1;
+          overflow: hidden;
+          display: flex;
+          flex-direction: column;
           background-color: #151E2B;
         }
 
@@ -254,86 +676,144 @@ const RoleManager: React.FC<RoleManagerProps> = ({ projectId }) => {
           font-size: 1.05rem;
         }
 
-        .role-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-          gap: 12px;
+        .role-table {
+          width: 100%;
+          border-collapse: collapse;
+          flex: 1;
         }
 
-        .role-card {
-          background: linear-gradient(145deg, #1A2A35 0%, #16232D 100%);
-          border: 1px solid #2D4A3E;
-          border-radius: 12px;
-          padding: 16px;
+        .role-table thead {
+          position: sticky;
+          top: 0;
+          z-index: 10;
+          background: #1A2432;
+        }
+
+        .role-table th {
+          padding: 12px 16px;
+          text-align: left;
+          font-size: 0.75rem;
+          font-weight: 600;
+          color: #94A3B8;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+          border-bottom: 1px solid #2D3E54;
+        }
+
+        .role-table td {
+          padding: 12px 16px;
+          border-bottom: 1px solid #243447;
+          vertical-align: middle;
+        }
+
+        .role-table tbody tr {
+          transition: background-color 0.15s ease;
+        }
+
+        .role-table tbody tr:hover {
+          background-color: rgba(255, 255, 255, 0.03);
+        }
+
+        .narrator-row {
+          background-color: rgba(0, 168, 255, 0.04);
+        }
+
+        /* 列宽 */
+        .col-name { width: 160px; min-width: 160px; }
+        .col-chapters { width: 140px; min-width: 140px; }
+        .col-aliases { width: 140px; min-width: 140px; }
+        .col-gender { width: 100px; min-width: 100px; }
+        .col-age { width: 100px; min-width: 100px; }
+        .col-voice { width: 160px; min-width: 160px; }
+        .col-desc { width: auto; min-width: 180px; }
+        .col-updated { width: 110px; min-width: 110px; }
+        .col-actions { width: 100px; min-width: 100px; }
+
+        .name-cell {
           display: flex;
-          gap: 14px;
-          transition: all 0.2s ease;
+          align-items: center;
+          gap: 10px;
         }
 
-        .role-card:hover {
-          background: linear-gradient(145deg, #1E303A 0%, #1A2832 100%);
-          border-color: #10B981;
-          transform: translateY(-2px);
-          box-shadow: 0 6px 20px rgba(16, 185, 129, 0.15);
-        }
-
-        .role-avatar {
-          width: 52px;
-          height: 52px;
-          border-radius: 12px;
+        .role-avatar-small {
+          width: 32px;
+          height: 32px;
+          border-radius: 8px;
           display: flex;
           align-items: center;
           justify-content: center;
           color: white;
           flex-shrink: 0;
-          box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);
         }
 
-        .role-avatar.known-avatar {
+        .role-avatar-small.known-avatar {
           background: linear-gradient(135deg, #10B981 0%, #059669 100%);
         }
 
-        .role-avatar.narrator-avatar {
+        .role-avatar-small.narrator-avatar {
           background: linear-gradient(135deg, #00A8FF 0%, #0088CC 100%);
         }
 
-        .role-info {
-          flex: 1;
-          min-width: 0;
-        }
-
-        .role-info h4 {
-          margin: 0 0 6px;
+        .character-name {
           color: #F1F5F9;
-          font-size: 1rem;
-          font-weight: 600;
+          font-weight: 500;
+          font-size: 0.9rem;
         }
 
-        .role-description {
-          margin: 0 0 8px;
+        .badge {
+          padding: 2px 8px;
+          border-radius: 4px;
+          font-size: 0.7rem;
+          font-weight: 500;
+          flex-shrink: 0;
+        }
+
+        .narrator-badge {
+          background-color: rgba(0, 168, 255, 0.15);
+          color: #00A8FF;
+        }
+
+        .ai-badge {
+          background-color: rgba(16, 185, 129, 0.15);
+          color: #10B981;
+        }
+
+        .chapter-list {
           color: #94A3B8;
           font-size: 0.85rem;
-          line-height: 1.4;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          display: -webkit-box;
-          -webkit-line-clamp: 2;
-          -webkit-box-orient: vertical;
         }
 
-        .voice-select-row {
+        .alias-list {
+          color: #94A3B8;
+          font-size: 0.85rem;
+        }
+
+        .gender-badge,
+        .age-badge {
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+          color: #94A3B8;
+          font-size: 0.85rem;
+        }
+
+        .gender-badge svg,
+        .age-badge svg {
+          color: #64748B;
+        }
+
+        .voice-select-cell {
           display: flex;
           align-items: center;
           gap: 6px;
-          margin-bottom: 8px;
         }
 
-        .voice-select-row svg {
+        .voice-select-cell svg {
           color: #00A8FF;
           flex-shrink: 0;
         }
 
-        .voice-select {
+        .voice-select-inline {
           flex: 1;
           padding: 4px 8px;
           background-color: #151E2B;
@@ -345,52 +825,53 @@ const RoleManager: React.FC<RoleManagerProps> = ({ projectId }) => {
           transition: all 0.2s ease;
         }
 
-        .voice-select:hover {
+        .voice-select-inline:hover {
           border-color: #00A8FF;
         }
 
-        .voice-select:focus {
+        .voice-select-inline:focus {
           outline: none;
           border-color: #00A8FF;
           box-shadow: 0 0 0 2px rgba(0, 168, 255, 0.2);
         }
 
-        .known-badge {
-          display: inline-flex;
-          align-items: center;
-          gap: 6px;
-          padding: 4px 10px;
-          background-color: rgba(16, 185, 129, 0.12);
-          color: #10B981;
-          border-radius: 6px;
-          font-size: 0.8rem;
-          font-weight: 500;
+        .description-text {
+          color: #94A3B8;
+          font-size: 0.85rem;
+          display: -webkit-box;
+          -webkit-line-clamp: 2;
+          -webkit-box-orient: vertical;
+          overflow: hidden;
         }
 
-        .narrator-badge {
+        .last-seen {
           display: inline-flex;
           align-items: center;
-          gap: 6px;
-          padding: 4px 10px;
-          background-color: rgba(0, 168, 255, 0.12);
-          color: #00A8FF;
-          border-radius: 6px;
+          gap: 4px;
+          color: #64748B;
           font-size: 0.8rem;
-          font-weight: 500;
         }
 
-        .role-actions {
+        .last-seen svg {
+          color: #475569;
+        }
+
+        .actions-cell {
           display: flex;
           gap: 4px;
-          flex-direction: column;
+        }
+
+        .edit-actions-inline {
+          display: flex;
+          gap: 6px;
         }
 
         .btn-icon {
-          width: 32px;
-          height: 32px;
+          width: 28px;
+          height: 28px;
           padding: 0;
           border: none;
-          border-radius: 8px;
+          border-radius: 6px;
           background: transparent;
           color: #64748B;
           cursor: pointer;
@@ -405,6 +886,11 @@ const RoleManager: React.FC<RoleManagerProps> = ({ projectId }) => {
           color: #E2E8F0;
         }
 
+        .btn-icon.btn-edit:hover:not(:disabled) {
+          background: rgba(0, 168, 255, 0.15);
+          color: #00A8FF;
+        }
+
         .btn-icon.btn-danger:hover:not(:disabled) {
           background: rgba(239, 68, 68, 0.15);
           color: #EF4444;
@@ -413,6 +899,125 @@ const RoleManager: React.FC<RoleManagerProps> = ({ projectId }) => {
         .btn-icon:disabled {
           opacity: 0.5;
           cursor: not-allowed;
+        }
+
+        .btn-ghost {
+          padding: 6px 12px;
+          border: 1px solid transparent;
+          background: transparent;
+          color: #94A3B8;
+          border-radius: 6px;
+          cursor: pointer;
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          font-size: 0.8rem;
+          transition: all 0.2s ease;
+        }
+
+        .btn-ghost:hover {
+          background: rgba(255, 255, 255, 0.06);
+          color: #E2E8F0;
+        }
+
+        .btn-ghost.btn-small {
+          padding: 4px 8px;
+        }
+
+        .btn-primary {
+          padding: 6px 12px;
+          border: none;
+          background: linear-gradient(135deg, #00A8FF 0%, #0088CC 100%);
+          color: white;
+          border-radius: 6px;
+          cursor: pointer;
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          font-size: 0.8rem;
+          font-weight: 500;
+          transition: all 0.2s ease;
+        }
+
+        .btn-primary:hover {
+          transform: translateY(-1px);
+          box-shadow: 0 4px 12px rgba(0, 168, 255, 0.35);
+        }
+
+        .btn-primary.btn-small {
+          padding: 4px 8px;
+        }
+
+        .edit-input-inline {
+          width: 100%;
+          padding: 4px 8px;
+          background-color: #151E2B;
+          border: 1px solid #2D3E54;
+          border-radius: 6px;
+          color: #E2E8F0;
+          font-size: 0.8rem;
+        }
+
+        .edit-input-inline:focus {
+          outline: none;
+          border-color: #00A8FF;
+          box-shadow: 0 0 0 2px rgba(0, 168, 255, 0.2);
+        }
+
+        .edit-select-inline {
+          width: 100%;
+          padding: 4px 8px;
+          background-color: #151E2B;
+          border: 1px solid #2D3E54;
+          border-radius: 6px;
+          color: #E2E8F0;
+          font-size: 0.8rem;
+        }
+
+        .edit-select-inline:focus {
+          outline: none;
+          border-color: #00A8FF;
+          box-shadow: 0 0 0 2px rgba(0, 168, 255, 0.2);
+        }
+
+        .pagination {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 16px;
+          padding: 16px;
+          border-top: 1px solid #243447;
+          background: #1A2432;
+        }
+
+        .btn-page {
+          width: 32px;
+          height: 32px;
+          padding: 0;
+          border: 1px solid #2D3E54;
+          background: #151E2B;
+          color: #94A3B8;
+          border-radius: 6px;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: all 0.2s ease;
+        }
+
+        .btn-page:hover:not(:disabled) {
+          border-color: #00A8FF;
+          color: #E2E8F0;
+        }
+
+        .btn-page:disabled {
+          opacity: 0.4;
+          cursor: not-allowed;
+        }
+
+        .page-info {
+          color: #94A3B8;
+          font-size: 0.85rem;
         }
       `}</style>
     </div>

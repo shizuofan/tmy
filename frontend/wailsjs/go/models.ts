@@ -106,6 +106,11 @@ export namespace models {
 	    name: string;
 	    description: string;
 	    voiceId: string;
+	    gender: string;
+	    age: string;
+	    aliases: string[];
+	    chapterNames: string[];
+	    lastSeenAt: number;
 	    // Go type: time
 	    createdAt: any;
 	    // Go type: time
@@ -122,6 +127,11 @@ export namespace models {
 	        this.name = source["name"];
 	        this.description = source["description"];
 	        this.voiceId = source["voiceId"];
+	        this.gender = source["gender"];
+	        this.age = source["age"];
+	        this.aliases = source["aliases"];
+	        this.chapterNames = source["chapterNames"];
+	        this.lastSeenAt = source["lastSeenAt"];
 	        this.createdAt = this.convertValues(source["createdAt"], null);
 	        this.updatedAt = this.convertValues(source["updatedAt"], null);
 	    }
@@ -148,6 +158,11 @@ export namespace models {
 	    name: string;
 	    description: string;
 	    voiceId: string;
+	    gender: string;
+	    age: string;
+	    aliases: string[];
+	    chapterNames: string[];
+	    lastSeenAt: number;
 	
 	    static createFrom(source: any = {}) {
 	        return new CharacterInfo(source);
@@ -158,6 +173,11 @@ export namespace models {
 	        this.name = source["name"];
 	        this.description = source["description"];
 	        this.voiceId = source["voiceId"];
+	        this.gender = source["gender"];
+	        this.age = source["age"];
+	        this.aliases = source["aliases"];
+	        this.chapterNames = source["chapterNames"];
+	        this.lastSeenAt = source["lastSeenAt"];
 	    }
 	}
 	
@@ -248,6 +268,22 @@ export namespace utils {
 	        this.apiKey = source["apiKey"];
 	        this.endpoint = source["endpoint"];
 	        this.modelName = source["modelName"];
+	    }
+	}
+	export class TTSConfig {
+	    apiKey: string;
+	    endpoint: string;
+	    appId: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new TTSConfig(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.apiKey = source["apiKey"];
+	        this.endpoint = source["endpoint"];
+	        this.appId = source["appId"];
 	    }
 	}
 

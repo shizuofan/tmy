@@ -10,13 +10,18 @@ import (
 
 // Character 角色模型
 type Character struct {
-	ID          int64     `json:"id"`
-	ProjectID   int64     `json:"projectId"`
-	Name        string    `json:"name"`
-	Description string    `json:"description"`
-	VoiceID     string    `json:"voiceId"`
-	CreatedAt   time.Time `json:"createdAt"`
-	UpdatedAt   time.Time `json:"updatedAt"`
+	ID           int64     `json:"id"`
+	ProjectID    int64     `json:"projectId"`
+	Name         string    `json:"name"`
+	Description  string    `json:"description"`
+	VoiceID      string    `json:"voiceId"`
+	Gender       string    `json:"gender"`
+	Age          string    `json:"age"`
+	Aliases      []string  `json:"aliases"`
+	ChapterNames []string  `json:"chapterNames"`
+	LastSeenAt   int64     `json:"lastSeenAt"`
+	CreatedAt    time.Time `json:"createdAt"`
+	UpdatedAt    time.Time `json:"updatedAt"`
 }
 
 // Voice 音色模型

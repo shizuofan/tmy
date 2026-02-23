@@ -14,6 +14,8 @@ import {
   GetProjectKnownCharacters,
   UpdateProjectKnownCharacters,
   DeleteProjectKnownCharacter,
+  SetKnownCharacterVoice,
+  UpdateKnownCharacter,
   CreateChapter,
   GetChapters,
   GetChapter,
@@ -34,6 +36,10 @@ import {
   UpdateParagraph,
   DeleteParagraph,
   SplitParagraph,
+  SplitParagraphPreview,
+  GenerateParagraphAudio,
+  GenerateBatchAudio,
+  GenerateChapterAudio,
   Log,
 } from "wailsjs/go/main/App";
 
@@ -160,15 +166,25 @@ export const api = {
 
   setKnownCharacterVoice: async (projectId: number, characterName: string, voiceId: string): Promise<void> => {
     try {
-      // 注意：需要在 app.go 中添加对应的 Wails 绑定并重新生成
-      // 这里我们使用现有的 UpdateProjectKnownCharacters 来更新
-      const characters = await api.getProjectKnownCharacters(projectId);
-      const updatedCharacters = characters.map(c =>
-        c.name === characterName ? { ...c, voiceId } : c
-      );
-      await api.updateProjectKnownCharacters(projectId, updatedCharacters);
+      await SetKnownCharacterVoice(projectId, characterName, voiceId);
     } catch (error) {
       console.error("Failed to set known character voice:", error);
+      throw error;
+    }
+  },
+
+  updateKnownCharacter: async (
+    projectId: number,
+    characterName: string,
+    description: string,
+    gender: string,
+    age: string,
+    aliases: string[]
+  ): Promise<void> => {
+    try {
+      await UpdateKnownCharacter(projectId, characterName, description, gender, age, aliases);
+    } catch (error) {
+      console.error("Failed to update known character:", error);
       throw error;
     }
   },
@@ -318,6 +334,47 @@ export const api = {
     }
   },
 
+  splitParagraphPreview: async (content: string): Promise<any[]> => {
+    try {
+      const result = await SplitParagraphPreview(content);
+      return result || [];
+    } catch (error) {
+      console.error("Failed to split paragraph preview:", error);
+      throw error;
+    }
+  },
+
+  // TTS 操作
+  generateParagraphAudio: async (paragraphId: number): Promise<any> => {
+    try {
+      const result = await GenerateParagraphAudio(paragraphId);
+      return result;
+    } catch (error) {
+      console.error("Failed to generate paragraph audio:", error);
+      throw error;
+    }
+  },
+
+  generateBatchAudio: async (paragraphIds: number[]): Promise<any[]> => {
+    try {
+      const result = await GenerateBatchAudio(paragraphIds);
+      return result || [];
+    } catch (error) {
+      console.error("Failed to generate batch audio:", error);
+      throw error;
+    }
+  },
+
+  generateChapterAudio: async (chapterId: number): Promise<any[]> => {
+    try {
+      const result = await GenerateChapterAudio(chapterId);
+      return result || [];
+    } catch (error) {
+      console.error("Failed to generate chapter audio:", error);
+      throw error;
+    }
+  },
+
   // 角色操作
   createCharacter: async (
     projectId: number,
@@ -418,10 +475,6 @@ export const api = {
     tone: string,
     speed: number
   ): Promise<string> => {
-    throw new Error("Not implemented");
-  },
-
-  generateBatchAudio: async (paragraphs: any[]): Promise<any[]> => {
     throw new Error("Not implemented");
   },
 

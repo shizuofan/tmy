@@ -28,6 +28,31 @@ func (c *ChapterController) GetLLMConfig() utils.LLMConfig {
 	return c.service.GetLLMConfig()
 }
 
+// SetTTSConfig 设置 TTS 配置
+func (c *ChapterController) SetTTSConfig(apiKey, endpoint, appID string) {
+	c.service.SetTTSConfig(apiKey, endpoint, appID)
+}
+
+// GetTTSConfig 获取 TTS 配置
+func (c *ChapterController) GetTTSConfig() utils.TTSConfig {
+	return c.service.GetTTSConfig()
+}
+
+// GenerateParagraphAudio 生成单个段落的音频
+func (c *ChapterController) GenerateParagraphAudio(paragraphID int64) (*models.Paragraph, error) {
+	return c.service.GenerateParagraphAudio(paragraphID)
+}
+
+// GenerateBatchAudio 批量生成段落音频
+func (c *ChapterController) GenerateBatchAudio(paragraphIDs []int64) ([]*models.Paragraph, error) {
+	return c.service.GenerateBatchAudio(paragraphIDs)
+}
+
+// GenerateChapterAudio 生成整个章节的音频
+func (c *ChapterController) GenerateChapterAudio(chapterID int64) ([]*models.Paragraph, error) {
+	return c.service.GenerateChapterAudio(chapterID)
+}
+
 // CreateChapter 创建章节
 func (c *ChapterController) CreateChapter(projectID int64, title, content string) (int64, error) {
 	return c.service.CreateChapter(projectID, title, content)

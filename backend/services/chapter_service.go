@@ -3,6 +3,9 @@ package services
 import (
 	"context"
 	"fmt"
+	"os"
+	"path/filepath"
+	"time"
 
 	"tmy2/backend/models"
 	"tmy2/backend/repositories"
@@ -16,18 +19,230 @@ type ChapterService struct {
 	projectService *ProjectService
 	llmClient      *utils.LLMClient
 	llmConfig      utils.LLMConfig
+	ttsConfig      utils.TTSConfig
 }
 
 // NewChapterService 创建章节服务
 func NewChapterService() *ChapterService {
 	config := utils.DefaultLLMConfig()
+	ttsConfig := utils.DefaultTTSConfig()
 	return &ChapterService{
 		repo:           repositories.NewChapterRepository(),
 		projectRepo:    repositories.NewProjectRepository(),
 		projectService: NewProjectService(),
 		llmClient:      utils.NewLLMClient(config),
 		llmConfig:      config,
+		ttsConfig:      ttsConfig,
 	}
+}
+
+// SetTTSConfig 设置TTS配置
+func (s *ChapterService) SetTTSConfig(apiKey, endpoint, appID string) {
+	s.ttsConfig = utils.TTSConfig{
+		APIKey:   apiKey,
+		Endpoint: endpoint,
+		AppID:    appID,
+	}
+}
+
+// GetTTSConfig 获取TTS配置
+func (s *ChapterService) GetTTSConfig() utils.TTSConfig {
+	return s.ttsConfig
+}
+
+// GenerateParagraphAudio 生成单个段落的音频
+func (s *ChapterService) GenerateParagraphAudio(paragraphID int64) (*models.Paragraph, error) {
+	utils.Info("开始生成段落音频: paragraphID=%d", paragraphID)
+
+	// 获取段落信息
+	paragraph, err := s.repo.GetParagraphByID(paragraphID)
+	if err != nil {
+		utils.Error("获取段落失败: paragraphID=%d, err=%v", paragraphID, err)
+		return nil, fmt.Errorf("获取段落失败: %w", err)
+	}
+	if paragraph == nil {
+		utils.Warn("段落不存在: paragraphID=%d", paragraphID)
+		return nil, fmt.Errorf("段落不存在")
+	}
+
+	// 获取章节信息
+	chapter, err := s.repo.GetByID(paragraph.ChapterID)
+	if err != nil {
+		utils.Error("获取章节失败: chapterID=%d, err=%v", paragraph.ChapterID, err)
+		return nil, fmt.Errorf("获取章节失败: %w", err)
+	}
+
+	// 获取项目信息，获取TTS API Key
+	project, err := s.projectRepo.GetByID(chapter.ProjectID)
+	if err != nil {
+		utils.Error("获取项目信息失败: projectID=%d, err=%v", chapter.ProjectID, err)
+		return nil, fmt.Errorf("获取项目信息失败: %w", err)
+	}
+	if project == nil {
+		utils.Warn("项目不存在: projectID=%d", chapter.ProjectID)
+		return nil, fmt.Errorf("项目不存在")
+	}
+
+	ttsAPIKey := project.TTSApiKey
+	if ttsAPIKey == "" {
+		utils.Warn("项目未配置TTS API Key: projectID=%d", chapter.ProjectID)
+		return nil, fmt.Errorf("项目未配置TTS API Key，请先在项目设置中配置")
+	}
+
+	// 检查必需参数
+	if paragraph.Content == "" {
+		utils.Warn("段落内容为空: paragraphID=%d", paragraphID)
+		return nil, fmt.Errorf("段落内容为空")
+	}
+
+	voiceID := paragraph.VoiceID
+	if voiceID == "" {
+		// 尝试从角色配置获取音色
+		voiceID, err = s.getDefaultVoiceID(project, paragraph.Speaker)
+		if err != nil {
+			utils.Warn("无法获取音色ID: paragraphID=%d, err=%v", paragraphID, err)
+			return nil, fmt.Errorf("请先为段落配置音色")
+		}
+		paragraph.VoiceID = voiceID
+	}
+
+	utils.Info("TTS参数: voiceID=%s, tone=%s, speed=%.2f, textLength=%d",
+		voiceID, paragraph.Tone, paragraph.Speed, len(paragraph.Content))
+
+	// 创建TTS客户端
+	ttsConfig := utils.TTSConfig{
+		APIKey:   ttsAPIKey,
+		Endpoint: s.ttsConfig.Endpoint,
+		AppID:    s.ttsConfig.AppID,
+	}
+	ttsClient := utils.NewTTSClient(ttsConfig)
+
+	// 生成音频
+	result, err := ttsClient.SynthesizeAudio(paragraph.Content, voiceID, paragraph.Tone, paragraph.Speed)
+	if err != nil {
+		utils.Error("音频生成失败: paragraphID=%d, err=%v", paragraphID, err)
+		return nil, fmt.Errorf("音频生成失败: %w", err)
+	}
+
+	// 保存音频文件
+	audioPath, err := s.getAudioFilePath(project.ID, chapter.ID, paragraph.ID)
+	if err != nil {
+		utils.Error("获取音频文件路径失败: paragraphID=%d, err=%v", paragraphID, err)
+		return nil, fmt.Errorf("获取音频文件路径失败: %w", err)
+	}
+
+	if err := ttsClient.SaveAudioToFile(result.AudioData, audioPath); err != nil {
+		utils.Error("保存音频文件失败: paragraphID=%d, err=%v", paragraphID, err)
+		return nil, fmt.Errorf("保存音频文件失败: %w", err)
+	}
+
+	// 更新段落信息
+	paragraph.AudioPath = audioPath
+	if result.Duration > 0 {
+		paragraph.Duration = result.Duration
+	}
+
+	if err := s.repo.UpdateParagraph(paragraph); err != nil {
+		utils.Error("更新段落失败: paragraphID=%d, err=%v", paragraphID, err)
+		return nil, fmt.Errorf("更新段落失败: %w", err)
+	}
+
+	utils.Info("段落音频生成成功: paragraphID=%d, audioPath=%s, duration=%.2fs",
+		paragraphID, audioPath, paragraph.Duration)
+
+	return toModelsParagraph(paragraph), nil
+}
+
+// GenerateBatchAudio 批量生成段落音频
+func (s *ChapterService) GenerateBatchAudio(paragraphIDs []int64) ([]*models.Paragraph, error) {
+	utils.Info("开始批量生成音频: count=%d", len(paragraphIDs))
+
+	results := make([]*models.Paragraph, 0, len(paragraphIDs))
+	errors := make([]error, 0)
+
+	for i, paragraphID := range paragraphIDs {
+		utils.Info("批量生成进度: %d/%d, paragraphID=%d", i+1, len(paragraphIDs), paragraphID)
+
+		result, err := s.GenerateParagraphAudio(paragraphID)
+		if err != nil {
+			utils.Error("生成段落音频失败: paragraphID=%d, err=%v", paragraphID, err)
+			errors = append(errors, fmt.Errorf("段落%d: %w", paragraphID, err))
+			continue
+		}
+		results = append(results, result)
+	}
+
+	utils.Info("批量生成完成: 成功=%d, 失败=%d", len(results), len(errors))
+
+	if len(errors) > 0 && len(results) == 0 {
+		return nil, fmt.Errorf("所有段落音频生成失败: %v", errors)
+	}
+
+	return results, nil
+}
+
+// GenerateChapterAudio 生成整个章节的音频
+func (s *ChapterService) GenerateChapterAudio(chapterID int64) ([]*models.Paragraph, error) {
+	utils.Info("开始生成章节音频: chapterID=%d", chapterID)
+
+	paragraphs, err := s.repo.GetParagraphsByChapterID(chapterID)
+	if err != nil {
+		utils.Error("获取章节段落失败: chapterID=%d, err=%v", chapterID, err)
+		return nil, fmt.Errorf("获取章节段落失败: %w", err)
+	}
+
+	if len(paragraphs) == 0 {
+		utils.Warn("章节没有段落: chapterID=%d", chapterID)
+		return nil, fmt.Errorf("章节没有段落")
+	}
+
+	paragraphIDs := make([]int64, len(paragraphs))
+	for i, p := range paragraphs {
+		paragraphIDs[i] = p.ID
+	}
+
+	return s.GenerateBatchAudio(paragraphIDs)
+}
+
+// getDefaultVoiceID 获取默认音色ID
+func (s *ChapterService) getDefaultVoiceID(project *repositories.Project, speaker string) (string, error) {
+	// 如果没有说话人，使用旁白音色
+	if speaker == "" {
+		if project.NarratorVoiceID != "" {
+			return project.NarratorVoiceID, nil
+		}
+		return "", fmt.Errorf("未配置旁白音色")
+	}
+
+	// 从已知角色列表中查找
+	knownChars, err := s.projectService.GetProjectKnownCharacters(project.ID)
+	if err == nil {
+		for _, c := range knownChars {
+			if c.Name == speaker && c.VoiceID != "" {
+				return c.VoiceID, nil
+			}
+		}
+	}
+
+	return "", fmt.Errorf("未找到角色音色")
+}
+
+// getAudioFilePath 获取音频文件保存路径
+func (s *ChapterService) getAudioFilePath(projectID, chapterID, paragraphID int64) (string, error) {
+	appDataDir, err := os.UserCacheDir()
+	if err != nil {
+		return "", err
+	}
+
+	audioDir := filepath.Join(appDataDir, "tmy2", "audio",
+		fmt.Sprintf("project_%d", projectID),
+		fmt.Sprintf("chapter_%d", chapterID))
+
+	if err := os.MkdirAll(audioDir, 0755); err != nil {
+		return "", err
+	}
+
+	return filepath.Join(audioDir, fmt.Sprintf("paragraph_%d.mp3", paragraphID)), nil
 }
 
 // SetLLMConfig 设置 LLM 配置
@@ -233,8 +448,6 @@ func (s *ChapterService) SplitParagraph(chapterID int64) ([]*models.Paragraph, e
 		}
 	}
 
-	utils.Info("调用 LLM 拆分段落: chapterID=%d, content=%s", chapterID, chapter.Content)
-
 	// 使用项目 API Key 和固定的 model name 创建 LLM 客户端
 	config := utils.LLMConfig{
 		APIKey:    project.LLMApiKey,
@@ -253,11 +466,31 @@ func (s *ChapterService) SplitParagraph(chapterID int64) ([]*models.Paragraph, e
 
 	// 更新角色信息
 	if len(llmResult.Characters) > 0 {
+		// 统计哪些角色在当前章节出现
+		speakerSet := make(map[string]bool)
+		for _, p := range llmResult.Paragraphs {
+			if p.Speaker != "" {
+				speakerSet[p.Speaker] = true
+			}
+		}
+
 		newCharacters := make([]models.CharacterInfo, len(llmResult.Characters))
+		now := time.Now().Unix()
 		for i, c := range llmResult.Characters {
+			// 如果角色在当前段落中有说话，则添加当前章节到出现章节列表
+			chapterNames := []string{}
+			if speakerSet[c.Name] {
+				chapterNames = append(chapterNames, chapter.Title)
+			}
+
 			newCharacters[i] = models.CharacterInfo{
-				Name:        c.Name,
-				Description: c.Description,
+				Name:         c.Name,
+				Description:  c.Description,
+				Gender:       c.Gender,
+				Age:          c.Age,
+				Aliases:      c.Aliases,
+				ChapterNames: chapterNames,
+				LastSeenAt:   now,
 			}
 		}
 		utils.Info("发现角色: projectID=%d, count=%d", chapter.ProjectID, len(newCharacters))

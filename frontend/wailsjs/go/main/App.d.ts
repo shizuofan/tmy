@@ -21,6 +21,12 @@ export function DeleteProject(arg1:number):Promise<void>;
 
 export function DeleteProjectKnownCharacter(arg1:number,arg2:string):Promise<void>;
 
+export function GenerateBatchAudio(arg1:Array<number>):Promise<Array<models.Paragraph>>;
+
+export function GenerateChapterAudio(arg1:number):Promise<Array<models.Paragraph>>;
+
+export function GenerateParagraphAudio(arg1:number):Promise<models.Paragraph>;
+
 export function GetChapter(arg1:number):Promise<models.Chapter>;
 
 export function GetChapters(arg1:number):Promise<Array<models.Chapter>>;
@@ -45,6 +51,8 @@ export function GetProjectTTSApiKey(arg1:number):Promise<string>;
 
 export function GetProjects():Promise<Array<models.Project>>;
 
+export function GetTTSConfig():Promise<utils.TTSConfig>;
+
 export function GetVoice(arg1:string):Promise<models.Voice>;
 
 export function GetVoices():Promise<Array<models.Voice>>;
@@ -61,6 +69,8 @@ export function SetProjectLLMApiKey(arg1:number,arg2:string):Promise<void>;
 
 export function SetProjectTTSApiKey(arg1:number,arg2:string):Promise<void>;
 
+export function SetTTSConfig(arg1:string,arg2:string,arg3:string):Promise<void>;
+
 export function SplitParagraph(arg1:number):Promise<Array<models.Paragraph>>;
 
 export function SplitParagraphPreview(arg1:string):Promise<Array<models.Paragraph>>;
@@ -68,6 +78,8 @@ export function SplitParagraphPreview(arg1:string):Promise<Array<models.Paragrap
 export function UpdateChapter(arg1:number,arg2:string,arg3:string):Promise<void>;
 
 export function UpdateCharacter(arg1:number,arg2:string,arg3:string,arg4:string):Promise<void>;
+
+export function UpdateKnownCharacter(arg1:number,arg2:string,arg3:string,arg4:string,arg5:string,arg6:Array<string>):Promise<void>;
 
 export function UpdateNarratorVoice(arg1:number,arg2:string):Promise<void>;
 

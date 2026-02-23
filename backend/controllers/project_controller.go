@@ -81,3 +81,8 @@ func (c *ProjectController) DeleteProjectKnownCharacter(projectID int64, charact
 func (c *ProjectController) SetKnownCharacterVoice(projectID int64, characterName string, voiceID string) error {
 	return c.service.SetKnownCharacterVoice(projectID, characterName, voiceID)
 }
+
+// UpdateKnownCharacter 更新已知角色的完整信息（性别、年龄、别名、简介）
+func (c *ProjectController) UpdateKnownCharacter(projectID int64, characterName string, description string, gender string, age string, aliases []string) error {
+	return c.service.UpdateKnownCharacter(projectID, characterName, description, gender, age, aliases)
+}

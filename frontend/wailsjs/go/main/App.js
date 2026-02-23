@@ -38,6 +38,18 @@ export function DeleteProjectKnownCharacter(arg1, arg2) {
   return window['go']['main']['App']['DeleteProjectKnownCharacter'](arg1, arg2);
 }
 
+export function GenerateBatchAudio(arg1) {
+  return window['go']['main']['App']['GenerateBatchAudio'](arg1);
+}
+
+export function GenerateChapterAudio(arg1) {
+  return window['go']['main']['App']['GenerateChapterAudio'](arg1);
+}
+
+export function GenerateParagraphAudio(arg1) {
+  return window['go']['main']['App']['GenerateParagraphAudio'](arg1);
+}
+
 export function GetChapter(arg1) {
   return window['go']['main']['App']['GetChapter'](arg1);
 }
@@ -86,6 +98,10 @@ export function GetProjects() {
   return window['go']['main']['App']['GetProjects']();
 }
 
+export function GetTTSConfig() {
+  return window['go']['main']['App']['GetTTSConfig']();
+}
+
 export function GetVoice(arg1) {
   return window['go']['main']['App']['GetVoice'](arg1);
 }
@@ -118,6 +134,10 @@ export function SetProjectTTSApiKey(arg1, arg2) {
   return window['go']['main']['App']['SetProjectTTSApiKey'](arg1, arg2);
 }
 
+export function SetTTSConfig(arg1, arg2, arg3) {
+  return window['go']['main']['App']['SetTTSConfig'](arg1, arg2, arg3);
+}
+
 export function SplitParagraph(arg1) {
   return window['go']['main']['App']['SplitParagraph'](arg1);
 }
@@ -132,6 +152,10 @@ export function UpdateChapter(arg1, arg2, arg3) {
 
 export function UpdateCharacter(arg1, arg2, arg3, arg4) {
   return window['go']['main']['App']['UpdateCharacter'](arg1, arg2, arg3, arg4);
+}
+
+export function UpdateKnownCharacter(arg1, arg2, arg3, arg4, arg5, arg6) {
+  return window['go']['main']['App']['UpdateKnownCharacter'](arg1, arg2, arg3, arg4, arg5, arg6);
 }
 
 export function UpdateNarratorVoice(arg1, arg2) {

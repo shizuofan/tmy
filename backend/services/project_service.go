@@ -260,8 +260,48 @@ func (s *ProjectService) UpdateProjectKnownCharacters(projectID int64, character
 				// 如果已有简介，保留；如果新简介不为空则更新
 				if c.Description != "" {
 					existing.Description = c.Description
-					charMap[c.Name] = existing
 				}
+				// 更新性别
+				if c.Gender != "" {
+					existing.Gender = c.Gender
+				}
+				// 更新年龄
+				if c.Age != "" {
+					existing.Age = c.Age
+				}
+				// 更新音色
+				if c.VoiceID != "" {
+					existing.VoiceID = c.VoiceID
+				}
+				// 合并别名（去重）
+				if len(c.Aliases) > 0 {
+					aliasMap := make(map[string]bool)
+					for _, a := range existing.Aliases {
+						aliasMap[a] = true
+					}
+					for _, a := range c.Aliases {
+						if !aliasMap[a] {
+							existing.Aliases = append(existing.Aliases, a)
+						}
+					}
+				}
+				// 合并出现章节名称（去重）
+				if len(c.ChapterNames) > 0 {
+					chapterMap := make(map[string]bool)
+					for _, ch := range existing.ChapterNames {
+						chapterMap[ch] = true
+					}
+					for _, ch := range c.ChapterNames {
+						if !chapterMap[ch] {
+							existing.ChapterNames = append(existing.ChapterNames, ch)
+						}
+					}
+				}
+				// 更新最后出现时间（取最新的）
+				if c.LastSeenAt > existing.LastSeenAt {
+					existing.LastSeenAt = c.LastSeenAt
+				}
+				charMap[c.Name] = existing
 			} else {
 				charMap[c.Name] = c
 			}
@@ -412,6 +452,62 @@ func (s *ProjectService) SetProjectNarratorVoiceID(id int64, voiceID string) err
 		return err
 	}
 	utils.Info("旁白音色设置成功: id=%d, voiceID=%s", id, voiceID)
+	return nil
+}
+
+// UpdateKnownCharacter 更新已知角色的完整信息（性别、年龄、别名、简介）
+func (s *ProjectService) UpdateKnownCharacter(projectID int64, characterName string, description string, gender string, age string, aliases []string) error {
+	utils.Info("更新已知角色信息: projectID=%d, name=%s", projectID, characterName)
+	project, err := s.repo.GetByID(projectID)
+	if err != nil {
+		utils.Error("更新已知角色失败 - 查找工程: projectID=%d, err=%v", projectID, err)
+		return err
+	}
+	if project == nil {
+		utils.Warn("更新已知角色失败 - 工程不存在: projectID=%d", projectID)
+		return nil
+	}
+
+	// 解析现有角色
+	var knownCharacters []models.CharacterInfo
+	if project.KnownCharacters != "" {
+		_ = json.Unmarshal([]byte(project.KnownCharacters), &knownCharacters)
+	}
+
+	// 查找并更新角色
+	found := false
+	for i, c := range knownCharacters {
+		if c.Name == characterName {
+			if description != "" {
+				knownCharacters[i].Description = description
+			}
+			if gender != "" {
+				knownCharacters[i].Gender = gender
+			}
+			if age != "" {
+				knownCharacters[i].Age = age
+			}
+			knownCharacters[i].Aliases = aliases
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		utils.Warn("更新已知角色失败 - 角色不存在: projectID=%d, name=%s", projectID, characterName)
+		return nil
+	}
+
+	// 序列化并保存
+	if data, err := json.Marshal(knownCharacters); err == nil {
+		project.KnownCharacters = string(data)
+		if err := s.repo.Update(project); err != nil {
+			utils.Error("更新已知角色失败: projectID=%d, err=%v", projectID, err)
+			return err
+		}
+		utils.Info("已知角色更新成功: projectID=%d, name=%s", projectID, characterName)
+	}
+
 	return nil
 }
 

@@ -71,6 +71,7 @@ const ChapterEditor: React.FC = () => {
   const [speakerSearch, setSpeakerSearch] = useState('');
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [errorTitle, setErrorTitle] = useState('生成脚本失败');
   const [confirmModal, setConfirmModal] = useState<{
     isOpen: boolean;
     title: string;
@@ -84,6 +85,8 @@ const ChapterEditor: React.FC = () => {
     type: 'warning',
     onConfirm: null,
   });
+  const [isGeneratingAudio, setIsGeneratingAudio] = useState(false);
+  const [audioGenerateProgress, setAudioGenerateProgress] = useState(0);
   const speakerDropdownRef = useRef<HTMLDivElement>(null);
   const timelineRef = useRef<HTMLDivElement>(null);
   const generateProgressIntervalRef = useRef<number | null>(null);
@@ -342,7 +345,110 @@ const ChapterEditor: React.FC = () => {
   // 生成单个音频
   const handleGenerateAudio = async (id: number) => {
     console.log('Generating audio for paragraph:', id);
-    // 模拟生成音频
+    try {
+      const updatedParagraph = await api.generateParagraphAudio(id);
+      // 更新段落列表
+      setParagraphs(prev => prev.map(p =>
+        p.id === id ? updatedParagraph : p
+      ));
+      // 更新原始段落数据
+      setOriginalParagraphs(prev => prev.map(p =>
+        p.id === id ? updatedParagraph : p
+      ));
+      // 重新计算总时长
+      calculateTotalDuration(paragraphs.map(p =>
+        p.id === id ? updatedParagraph : p
+      ));
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 2000);
+    } catch (error) {
+      console.error('Failed to generate audio:', error);
+      let msg = '生成音频失败';
+      if (typeof error === 'string') {
+        msg = error;
+      } else if (error instanceof Error) {
+        msg = error.message;
+      } else if (error && typeof error === 'object') {
+        msg = (error as any).message || (error as any).error || String(error);
+      }
+      setErrorTitle('生成音频失败');
+      setErrorMessage(msg);
+      setShowErrorModal(true);
+    }
+  };
+
+  // 生成整个章节的音频
+  const handleGenerateChapterAudio = async () => {
+    if (!chapterId) return;
+
+    const paragraphsWithoutAudio = paragraphs.filter(p => !p.audioPath);
+    if (paragraphsWithoutAudio.length === 0) {
+      setConfirmModal({
+        isOpen: true,
+        title: '重新生成音频',
+        message: '所有段落都已有音频，确定要重新生成吗？',
+        type: 'warning',
+        onConfirm: () => {
+          setConfirmModal(prev => ({ ...prev, isOpen: false }));
+          doGenerateChapterAudio(paragraphs.map(p => p.id));
+        },
+      });
+      return;
+    }
+
+    setConfirmModal({
+      isOpen: true,
+      title: '生成章节音频',
+      message: `将为 ${paragraphsWithoutAudio.length} 个段落生成音频，确定继续吗？`,
+      type: 'info',
+      onConfirm: () => {
+        setConfirmModal(prev => ({ ...prev, isOpen: false }));
+        doGenerateChapterAudio(paragraphsWithoutAudio.map(p => p.id));
+      },
+    });
+  };
+
+  // 执行生成章节音频
+  const doGenerateChapterAudio = async (paragraphIds: number[]) => {
+    if (!chapterId) return;
+
+    setIsGeneratingAudio(true);
+    setAudioGenerateProgress(0);
+
+    try {
+      const updatedParagraphs = await api.generateChapterAudio(parseInt(chapterId));
+
+      // 更新段落列表
+      const updatedMap = new Map(updatedParagraphs.map(p => [p.id, p]));
+      const newParagraphs = paragraphs.map(p => updatedMap.get(p.id) || p);
+
+      setParagraphs(newParagraphs);
+      setOriginalParagraphs(newParagraphs);
+      calculateTotalDuration(newParagraphs);
+
+      setAudioGenerateProgress(100);
+      setSaveSuccess(true);
+      setTimeout(() => {
+        setSaveSuccess(false);
+        setIsGeneratingAudio(false);
+        setAudioGenerateProgress(0);
+      }, 1500);
+    } catch (error) {
+      console.error('Failed to generate chapter audio:', error);
+      setIsGeneratingAudio(false);
+      setAudioGenerateProgress(0);
+      let msg = '生成章节音频失败';
+      if (typeof error === 'string') {
+        msg = error;
+      } else if (error instanceof Error) {
+        msg = error.message;
+      } else if (error && typeof error === 'object') {
+        msg = (error as any).message || (error as any).error || String(error);
+      }
+      setErrorTitle('生成章节音频失败');
+      setErrorMessage(msg);
+      setShowErrorModal(true);
+    }
   };
 
   // 清理进度定时器
@@ -437,6 +543,7 @@ const ChapterEditor: React.FC = () => {
         msg = (error as any).message || (error as any).error || String(error);
       }
       console.log('Setting error message:', msg);
+      setErrorTitle('生成脚本失败');
       setErrorMessage(msg);
       setShowErrorModal(true);
       // 重置进度状态，但延迟一点让用户看到
@@ -595,6 +702,29 @@ const ChapterEditor: React.FC = () => {
             <Save size={16} />
             {isSaving ? '保存中...' : '保存'}
           </button>
+          <div className="generate-button-wrapper">
+            <button
+              className="btn-primary audio-generate-btn"
+              onClick={handleGenerateChapterAudio}
+              disabled={isGeneratingAudio || paragraphs.length === 0}
+            >
+              <Zap size={16} />
+              {isGeneratingAudio ? '生成音频中...' : '生成章节音频'}
+            </button>
+            {isGeneratingAudio && (
+              <div className="generate-progress-container">
+                <div className="progress-bar">
+                  <div
+                    className="progress-bar-fill"
+                    style={{ width: `${audioGenerateProgress}%` }}
+                  ></div>
+                </div>
+                <div className="progress-info">
+                  <span className="progress-percent">{Math.round(audioGenerateProgress)}%</span>
+                </div>
+              </div>
+            )}
+          </div>
           <div className="generate-button-wrapper">
             <button
               className="btn-primary"
@@ -967,7 +1097,7 @@ const ChapterEditor: React.FC = () => {
             <div className="error-modal-header">
               <div className="error-modal-title">
                 <AlertCircle size={24} className="error-icon" />
-                <h2>生成脚本失败</h2>
+                <h2>{errorTitle}</h2>
               </div>
               <button
                 className="modal-close"
@@ -1898,6 +2028,11 @@ const ChapterEditor: React.FC = () => {
           background: linear-gradient(135deg, #00A8FF 0%, #0088CC 100%);
           color: white;
           box-shadow: 0 2px 8px rgba(0, 168, 255, 0.25);
+        }
+
+        .btn-primary.audio-generate-btn {
+          background: linear-gradient(135deg, #10B981 0%, #059669 100%);
+          box-shadow: 0 2px 8px rgba(16, 185, 129, 0.25);
         }
 
         .btn-primary:hover:not(:disabled) {

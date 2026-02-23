@@ -5,6 +5,11 @@ export interface CharacterInfo {
   name: string;
   description: string;
   voiceId: string;
+  gender: string;
+  age: string;
+  aliases: string[];
+  chapterNames: string[];
+  lastSeenAt: number;
 }
 
 // 工程类型
@@ -54,6 +59,11 @@ export interface Character {
   name: string;
   description: string;
   voiceId: string;
+  gender: string;
+  age: string;
+  aliases: string[];
+  chapterNames: string[];
+  lastSeenAt: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -190,6 +200,34 @@ export const ToneNameMap: Record<string, string> = {
   "authoritative": "权威",
 };
 
+// 性别常量
+export const GenderMale = "male";
+export const GenderFemale = "female";
+export const GenderUnknown = "unknown";
+
+// 性别显示名称映射
+export const GenderNameMap: Record<string, string> = {
+  "male": "男",
+  "female": "女",
+  "unknown": "未知",
+};
+
+// 年龄常量
+export const AgeChild = "child";
+export const AgeTeen = "teen";
+export const AgeAdult = "adult";
+export const AgeSenior = "senior";
+export const AgeUnknown = "unknown";
+
+// 年龄显示名称映射
+export const AgeNameMap: Record<string, string> = {
+  "child": "儿童",
+  "teen": "少年",
+  "adult": "成人",
+  "senior": "老年",
+  "unknown": "未知",
+};
+
 // 语速范围
 export const MinSpeed = 0.5;
 export const MaxSpeed = 2.0;
@@ -206,6 +244,13 @@ export interface AppState {
   voices: Voice[];
   isLoading: boolean;
   error: string | null;
+}
+
+// TTS 配置类型
+export interface TTSConfig {
+  apiKey: string;
+  endpoint: string;
+  appId: string;
 }
 
 // 操作类型

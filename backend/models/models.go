@@ -19,9 +19,14 @@ type Project struct {
 
 // CharacterInfo 角色信息（用于已知角色列表）
 type CharacterInfo struct {
-	Name        string `json:"name"`        // 角色名称
-	Description string `json:"description"` // 角色简介/关系描述
-	VoiceID     string `json:"voiceId"`     // 音色ID
+	Name           string   `json:"name"`           // 角色名称
+	Description    string   `json:"description"`    // 角色简介/关系描述
+	VoiceID        string   `json:"voiceId"`        // 音色ID
+	Gender         string   `json:"gender"`         // 性别: male/female/unknown
+	Age            string   `json:"age"`            // 年龄: child/teen/adult/senior/unknown
+	Aliases        []string `json:"aliases"`        // 别名/外号列表
+	ChapterNames   []string `json:"chapterNames"`   // 出现的章节名称列表
+	LastSeenAt     int64    `json:"lastSeenAt"`     // 最后发现时间（Unix时间戳）
 }
 
 // Chapter 章节模型
@@ -54,13 +59,18 @@ type Paragraph struct {
 
 // Character 角色模型
 type Character struct {
-	ID          int64     `json:"id"`
-	ProjectID   int64     `json:"projectId"`
-	Name        string    `json:"name"`
-	Description string    `json:"description"`
-	VoiceID     string    `json:"voiceId"` // 默认音色
-	CreatedAt   time.Time `json:"createdAt"`
-	UpdatedAt   time.Time `json:"updatedAt"`
+	ID           int64     `json:"id"`
+	ProjectID    int64     `json:"projectId"`
+	Name         string    `json:"name"`
+	Description  string    `json:"description"`
+	VoiceID      string    `json:"voiceId"` // 默认音色
+	Gender       string    `json:"gender"`  // 性别: male/female/unknown
+	Age          string    `json:"age"`     // 年龄: child/teen/adult/senior/unknown
+	Aliases      []string  `json:"aliases"` // 别名/外号列表
+	ChapterNames []string  `json:"chapterNames"` // 出现的章节名称列表
+	LastSeenAt   int64     `json:"lastSeenAt"`   // 最后发现时间（Unix时间戳）
+	CreatedAt    time.Time `json:"createdAt"`
+	UpdatedAt    time.Time `json:"updatedAt"`
 }
 
 // Voice 音色模型
