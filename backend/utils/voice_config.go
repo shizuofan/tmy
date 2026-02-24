@@ -12,8 +12,8 @@ import (
 
 // VoiceConfig 音色配置结构
 type VoiceConfig struct {
-	Voices     []VoiceItem     `yaml:"voices"`
-	Categories []CategoryItem  `yaml:"categories"`
+	Voices     []VoiceItem    `yaml:"voices"`
+	Categories []CategoryItem `yaml:"categories"`
 }
 
 // VoiceItem 音色配置项

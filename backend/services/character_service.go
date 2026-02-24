@@ -11,8 +11,8 @@ import (
 
 // CharacterService 角色服务
 type CharacterService struct {
-	repo            repositories.CharacterRepository
-	projectRepo     repositories.ProjectRepository
+	repo        repositories.CharacterRepository
+	projectRepo repositories.ProjectRepository
 }
 
 // NewCharacterService 创建角色服务

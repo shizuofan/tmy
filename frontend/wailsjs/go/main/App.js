@@ -10,8 +10,8 @@ export function CreateCharacter(arg1, arg2, arg3, arg4) {
   return window['go']['main']['App']['CreateCharacter'](arg1, arg2, arg3, arg4);
 }
 
-export function CreateParagraph(arg1, arg2, arg3, arg4, arg5, arg6) {
-  return window['go']['main']['App']['CreateParagraph'](arg1, arg2, arg3, arg4, arg5, arg6);
+export function CreateParagraph(arg1, arg2, arg3, arg4, arg5, arg6, arg7) {
+  return window['go']['main']['App']['CreateParagraph'](arg1, arg2, arg3, arg4, arg5, arg6, arg7);
 }
 
 export function CreateProject(arg1, arg2) {
@@ -182,8 +182,8 @@ export function UpdateNarratorVoice(arg1, arg2) {
   return window['go']['main']['App']['UpdateNarratorVoice'](arg1, arg2);
 }
 
-export function UpdateParagraph(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10) {
-  return window['go']['main']['App']['UpdateParagraph'](arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10);
+export function UpdateParagraph(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11) {
+  return window['go']['main']['App']['UpdateParagraph'](arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11);
 }
 
 export function UpdateProject(arg1, arg2, arg3) {

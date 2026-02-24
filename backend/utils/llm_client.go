@@ -48,8 +48,8 @@ type LLMCharacter struct {
 
 // SplitParagraphResponseV2 支持新增和更新角色的响应结构
 type SplitParagraphResponseV2 struct {
-	Paragraphs      []LLMParagraph `json:"paragraphs"`
-	NewCharacters   []LLMCharacter `json:"new_characters"`
+	Paragraphs       []LLMParagraph `json:"paragraphs"`
+	NewCharacters    []LLMCharacter `json:"new_characters"`
 	UpdateCharacters []LLMCharacter `json:"update_characters"`
 }
 

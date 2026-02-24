@@ -9,17 +9,17 @@ import (
 
 // Project 工程模型
 type Project struct {
-	ID               int64     `json:"id"`
-	Name             string    `json:"name"`
-	Description      string    `json:"description"`
-	LLMApiKey        string    `json:"llmApiKey"`        // 文本大模型 API Key
-	TTSApiKey        string    `json:"ttsApiKey"`        // 语音大模型 API Key
-	TTSAppID         string    `json:"ttsAppId"`         // 语音大模型 App ID
-	TTSToken         string    `json:"ttsToken"`         // 语音大模型 Token
-	KnownCharacters  string    `json:"knownCharacters"`  // 已知角色列表(JSON格式存储
-	NarratorVoiceID  string    `json:"narratorVoiceId"`  // 旁白音色ID
-	CreatedAt        time.Time `json:"createdAt"`
-	UpdatedAt        time.Time `json:"updatedAt"`
+	ID              int64     `json:"id"`
+	Name            string    `json:"name"`
+	Description     string    `json:"description"`
+	LLMApiKey       string    `json:"llmApiKey"`       // 文本大模型 API Key
+	TTSApiKey       string    `json:"ttsApiKey"`       // 语音大模型 API Key
+	TTSAppID        string    `json:"ttsAppId"`        // 语音大模型 App ID
+	TTSToken        string    `json:"ttsToken"`        // 语音大模型 Token
+	KnownCharacters string    `json:"knownCharacters"` // 已知角色列表(JSON格式存储
+	NarratorVoiceID string    `json:"narratorVoiceId"` // 旁白音色ID
+	CreatedAt       time.Time `json:"createdAt"`
+	UpdatedAt       time.Time `json:"updatedAt"`
 }
 
 // ProjectRepository 工程数据访问接口

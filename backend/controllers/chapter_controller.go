@@ -84,8 +84,8 @@ func (c *ChapterController) ReorderChapters(projectID int64, chapterIDs []int64)
 }
 
 // CreateParagraph 创建段落
-func (c *ChapterController) CreateParagraph(chapterID int64, content, speaker, tone, voiceID string, speed float64) (int64, error) {
-	return c.service.CreateParagraph(chapterID, content, speaker, tone, voiceID, speed)
+func (c *ChapterController) CreateParagraph(chapterID int64, content, speaker, tone, voiceID string, speed int, volume int) (int64, error) {
+	return c.service.CreateParagraph(chapterID, content, speaker, tone, voiceID, speed, volume)
 }
 
 // GetParagraphs 获取章节的段落列表
@@ -99,8 +99,8 @@ func (c *ChapterController) GetParagraph(id int64) (*models.Paragraph, error) {
 }
 
 // UpdateParagraph 更新段落
-func (c *ChapterController) UpdateParagraph(id int64, content, speaker, tone, voiceID string, speed float64, audioPath string, audioData string, duration float64, orderIndex int) error {
-	return c.service.UpdateParagraph(id, content, speaker, tone, voiceID, speed, audioPath, audioData, duration, orderIndex)
+func (c *ChapterController) UpdateParagraph(id int64, content, speaker, tone, voiceID string, speed int, volume int, audioPath string, audioData string, duration float64, orderIndex int) error {
+	return c.service.UpdateParagraph(id, content, speaker, tone, voiceID, speed, volume, audioPath, audioData, duration, orderIndex)
 }
 
 // DeleteParagraph 删除段落

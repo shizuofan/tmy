@@ -1,26 +1,145 @@
-html {
-    background-color: rgba(27, 38, 54, 1);
-    text-align: center;
-    color: white;
+/* 全局样式 - 桌面应用风格 */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
 }
 
 body {
-    margin: 0;
-    color: white;
-    font-family: "Nunito", -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto",
-    "Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue",
-    sans-serif;
+  font-family: "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, Roboto, Oxygen, Ubuntu, Cantarell, "Helvetica Neue", Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: #1E1E1E;
+  color: #CCCCCC;
+  font-size: 13px;
+  line-height: 1.4;
+  overflow: hidden;
 }
 
-@font-face {
-    font-family: "Nunito";
-    font-style: normal;
-    font-weight: 400;
-    src: local(""),
-    url("assets/fonts/nunito-v16-latin-regular.woff2") format("woff2");
+#root {
+  width: 100%;
+  height: 100vh;
+  overflow: hidden;
 }
 
-#app {
-    height: 100vh;
-    text-align: center;
+.app {
+  width: 100%;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* 滚动条样式 - 桌面风格 */
+::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+::-webkit-scrollbar-track {
+  background: #2D2D2D;
+  border-left: 1px solid #404040;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #686868;
+  border: 2px solid #2D2D2D;
+  border-radius: 0;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #858585;
+}
+
+::-webkit-scrollbar-corner {
+  background: #2D2D2D;
+}
+
+/* 基础按钮样式 - 桌面风格 */
+button {
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 13px;
+  outline: none;
+  user-select: none;
+}
+
+button:focus-visible {
+  outline: 1px dotted #FFFFFF;
+  outline-offset: -4px;
+}
+
+/* 输入框样式 - 桌面风格 */
+input, textarea, select {
+  font-family: inherit;
+  font-size: 13px;
+  background-color: #3C3C3C;
+  color: #CCCCCC;
+  border: 1px solid #555555;
+  border-radius: 0;
+  padding: 4px 6px;
+  outline: none;
+}
+
+input:focus, textarea:focus, select:focus {
+  border-color: #007ACC;
+}
+
+input:disabled, textarea:disabled, select:disabled {
+  background-color: #2D2D2D;
+  color: #656565;
+  border-color: #404040;
+}
+
+/* 基础动画 */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateY(-10px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.fade-in {
+  animation: fadeIn 0.15s ease-out;
+}
+
+.slide-in {
+  animation: slideIn 0.15s ease-out;
+}
+
+/* 加载动画 */
+.spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid #404040;
+  border-top: 2px solid #007ACC;
+  border-radius: 0;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* 选择文本样式 */
+::selection {
+  background-color: #264F78;
+  color: #FFFFFF;
+}
+
+::-moz-selection {
+  background-color: #264F78;
+  color: #FFFFFF;
 }

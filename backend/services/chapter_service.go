@@ -106,8 +106,8 @@ func (s *ChapterService) GenerateParagraphAudio(paragraphID int64) (*models.Para
 		paragraph.VoiceID = voiceID
 	}
 
-	utils.Info("TTS参数: voiceID=%s, tone=%s, speed=%.2f, textLength=%d",
-		voiceID, paragraph.Tone, paragraph.Speed, len(paragraph.Content))
+	utils.Info("TTS参数: voiceID=%s, tone=%s, speed=%d, volume=%d, textLength=%d",
+		voiceID, paragraph.Tone, paragraph.Speed, paragraph.Volume, len(paragraph.Content))
 
 	// 创建TTS客户端
 	ttsConfig := utils.TTSConfig{
@@ -119,7 +119,7 @@ func (s *ChapterService) GenerateParagraphAudio(paragraphID int64) (*models.Para
 	ttsClient := utils.NewTTSClient(ttsConfig)
 
 	// 生成音频
-	result, err := ttsClient.SynthesizeAudio(paragraph.Content, voiceID, paragraph.Tone, paragraph.Speed)
+	result, err := ttsClient.SynthesizeAudio(paragraph.Content, voiceID, paragraph.Tone, paragraph.Speed, paragraph.Volume)
 	if err != nil {
 		utils.Error("音频生成失败: paragraphID=%d, err=%v", paragraphID, err)
 		return nil, fmt.Errorf("音频生成失败: %w", err)
@@ -326,7 +326,7 @@ func (s *ChapterService) ReorderChapters(projectID int64, chapterIDs []int64) er
 }
 
 // CreateParagraph 创建段落
-func (s *ChapterService) CreateParagraph(chapterID int64, content, speaker, tone, voiceID string, speed float64) (int64, error) {
+func (s *ChapterService) CreateParagraph(chapterID int64, content, speaker, tone, voiceID string, speed int, volume int) (int64, error) {
 	paragraphs, err := s.repo.GetParagraphsByChapterID(chapterID)
 	if err != nil {
 		return 0, err
@@ -339,6 +339,7 @@ func (s *ChapterService) CreateParagraph(chapterID int64, content, speaker, tone
 		Tone:       tone,
 		VoiceID:    voiceID,
 		Speed:      speed,
+		Volume:     volume,
 		OrderIndex: len(paragraphs),
 	}
 	if err := s.repo.CreateParagraph(paragraph); err != nil {
@@ -366,7 +367,7 @@ func (s *ChapterService) GetParagraph(id int64) (*models.Paragraph, error) {
 }
 
 // UpdateParagraph 更新段落
-func (s *ChapterService) UpdateParagraph(id int64, content, speaker, tone, voiceID string, speed float64, audioPath string, audioData string, duration float64, orderIndex int) error {
+func (s *ChapterService) UpdateParagraph(id int64, content, speaker, tone, voiceID string, speed int, volume int, audioPath string, audioData string, duration float64, orderIndex int) error {
 	paragraph, err := s.repo.GetParagraphByID(id)
 	if err != nil {
 		return err
@@ -380,6 +381,7 @@ func (s *ChapterService) UpdateParagraph(id int64, content, speaker, tone, voice
 	paragraph.Tone = tone
 	paragraph.VoiceID = voiceID
 	paragraph.Speed = speed
+	paragraph.Volume = volume
 	paragraph.AudioPath = audioPath
 	paragraph.AudioData = audioData
 	paragraph.Duration = duration
@@ -510,7 +512,9 @@ func (s *ChapterService) SplitParagraph(chapterID int64) ([]*models.Paragraph, e
 			Tone:       llmP.Tone,
 			VoiceID:    "",
 			Speed:      models.DefSpeed,
+			Volume:     models.DefVolume,
 			AudioPath:  "",
+			AudioData:  "",
 			Duration:   0,
 			OrderIndex: i,
 		}
@@ -542,6 +546,7 @@ func (s *ChapterService) SplitParagraphPreview(content string) ([]*models.Paragr
 			Tone:       llmP.Tone,
 			VoiceID:    "",
 			Speed:      models.DefSpeed,
+			Volume:     models.DefVolume,
 			AudioPath:  "",
 			Duration:   0,
 			OrderIndex: i,
@@ -604,6 +609,7 @@ func toRepoParagraph(p *models.Paragraph) *repositories.Paragraph {
 		Tone:       p.Tone,
 		VoiceID:    p.VoiceID,
 		Speed:      p.Speed,
+		Volume:     p.Volume,
 		AudioPath:  p.AudioPath,
 		AudioData:  p.AudioData,
 		Duration:   p.Duration,
@@ -625,6 +631,7 @@ func toModelsParagraph(p *repositories.Paragraph) *models.Paragraph {
 		Tone:       p.Tone,
 		VoiceID:    p.VoiceID,
 		Speed:      p.Speed,
+		Volume:     p.Volume,
 		AudioPath:  p.AudioPath,
 		AudioData:  p.AudioData,
 		Duration:   p.Duration,

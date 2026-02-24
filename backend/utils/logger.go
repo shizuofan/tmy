@@ -20,11 +20,11 @@ const (
 )
 
 var (
-	logger     *log.Logger
-	logFile    *os.File
-	logLevel   LogLevel = LogLevelInfo
-	logMutex   sync.Mutex
-	logPrefix  = "[听墨语]"
+	logger    *log.Logger
+	logFile   *os.File
+	logLevel  LogLevel = LogLevelInfo
+	logMutex  sync.Mutex
+	logPrefix = "[听墨语]"
 )
 
 // InitLogger 初始化日志

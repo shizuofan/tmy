@@ -17,15 +17,14 @@ import {
   Zap,
   Clock,
   Edit2,
-  X,
-  Save,
-  Check,
-  AlertCircle,
   FileText,
   Sparkles,
+  X,
+  Save,
+  AlertCircle,
 } from 'lucide-react';
 import api from '../utils/api';
-import { Chapter, Paragraph, CharacterInfo, Voice, SupportedTones, DefSpeed } from '../types';
+import { Chapter, Paragraph, CharacterInfo, Voice, SupportedTones, DefSpeed, DefVolume, convertSpeedToRatio, convertVolumeToRatio } from '../types';
 import ConfirmModal from '../components/ConfirmModal';
 
 interface TimelineSegment {
@@ -53,6 +52,7 @@ const ChapterEditor: React.FC = () => {
   const [currentTime, setCurrentTime] = useState(0);
   const [totalDuration, setTotalDuration] = useState(0);
   const [playingParagraphId, setPlayingParagraphId] = useState<number | null>(null);
+  const [currentPlayIndex, setCurrentPlayIndex] = useState(-1);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const playProgressIntervalRef = useRef<number | null>(null);
   const [editForm, setEditForm] = useState({
@@ -60,10 +60,9 @@ const ChapterEditor: React.FC = () => {
     speaker: '',
     tone: 'neutral',
     speed: DefSpeed,
+    volume: DefVolume,
   });
-  const [dirtyParagraphs, setDirtyParagraphs] = useState<Set<number>>(new Set());
   const [isSaving, setIsSaving] = useState(false);
-  const [saveSuccess, setSaveSuccess] = useState(false);
   const [showTextEditor, setShowTextEditor] = useState(false);
   const [chapterText, setChapterText] = useState('');
   const [isSavingChapter, setIsSavingChapter] = useState(false);
@@ -90,6 +89,8 @@ const ChapterEditor: React.FC = () => {
   });
   const [isGeneratingAudio, setIsGeneratingAudio] = useState(false);
   const [audioGenerateProgress, setAudioGenerateProgress] = useState(0);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+  const [dirtyParagraphs, setDirtyParagraphs] = useState<Set<number>>(new Set());
   const speakerDropdownRef = useRef<HTMLDivElement>(null);
   const timelineRef = useRef<HTMLDivElement>(null);
   const generateProgressIntervalRef = useRef<number | null>(null);
@@ -120,7 +121,8 @@ const ChapterEditor: React.FC = () => {
           content: paragraph.content,
           speaker: paragraph.speaker || '',
           tone: paragraph.tone || 'neutral',
-          speed: paragraph.speed || DefSpeed,
+          speed: paragraph.speed ?? DefSpeed,
+          volume: paragraph.volume ?? DefVolume,
         });
       }
     }
@@ -207,18 +209,10 @@ const ChapterEditor: React.FC = () => {
 
   const timelineSegments = getTimelineSegments();
 
-  // 检查段落是否有修改
-  const isParagraphDirty = (id: number): boolean => {
-    return dirtyParagraphs.has(id);
-  };
-
   // 选择段落
   const handleSelectParagraph = (id: number) => {
     // 如果选中的是同一个段落，不做处理
     if (id === selectedParagraphId) return;
-
-    // 先应用当前编辑的修改到段落列表
-    applyCurrentEdit();
 
     // 切换到新段落
     setSelectedParagraphId(id);
@@ -228,94 +222,57 @@ const ChapterEditor: React.FC = () => {
         content: paragraph.content,
         speaker: paragraph.speaker || '',
         tone: paragraph.tone || 'neutral',
-        speed: paragraph.speed || DefSpeed,
+        speed: paragraph.speed ?? DefSpeed,
+        volume: paragraph.volume ?? DefVolume,
       });
     }
   };
 
-  // 应用当前编辑到段落列表
-  const applyCurrentEdit = () => {
-    if (selectedParagraphId) {
-      const updatedParagraphs = paragraphs.map((p) =>
-        p.id === selectedParagraphId
-          ? { ...p, ...editForm, voiceId: p.voiceId } // 保留 voiceId
-          : p
-      );
-      setParagraphs(updatedParagraphs);
-    }
-  };
-
-  // 处理表单变更 - 只更新表单状态并标记为脏
-  const handleFormChange = (field: string, value: any) => {
-    setEditForm({ ...editForm, [field]: value });
-    if (selectedParagraphId) {
-      setDirtyParagraphs(prev => new Set(prev).add(selectedParagraphId));
-    }
-  };
-
-  // 保存所有修改到后端
-  const handleSaveAll = async () => {
-    if (dirtyParagraphs.size === 0) return;
-
-    setIsSaving(true);
+  // 保存单个段落到后端
+  const saveParagraph = async (paragraph: Paragraph) => {
     try {
-      // 先应用当前正在编辑的段落的修改
-      applyCurrentEdit();
-
-      // 逐个保存脏段落
-      for (const id of dirtyParagraphs) {
-        const paragraph = paragraphs.find(p => p.id === id);
-        if (paragraph) {
-          await api.updateParagraph(
-            paragraph.id,
-            paragraph.content,
-            paragraph.speaker,
-            paragraph.tone,
-            paragraph.voiceId,
-            paragraph.speed,
-            paragraph.audioPath,
-            (paragraph as any).audioData || '',
-            paragraph.duration,
-            paragraph.orderIndex
-          );
-        }
-      }
-
-      // 清空脏状态
-      setDirtyParagraphs(new Set());
-      // 更新原始段落数据
-      setOriginalParagraphs(paragraphs);
-      setSaveSuccess(true);
-      setTimeout(() => setSaveSuccess(false), 2000);
+      await api.updateParagraph(
+        paragraph.id,
+        paragraph.content,
+        paragraph.speaker,
+        paragraph.tone,
+        paragraph.voiceId,
+        paragraph.speed,
+        paragraph.volume ?? DefVolume,
+        paragraph.audioPath,
+        (paragraph as any).audioData || '',
+        paragraph.duration,
+        paragraph.orderIndex
+      );
+      return true;
     } catch (error) {
-      console.error('Failed to save paragraphs:', error);
+      console.error('Failed to save paragraph:', error);
+      return false;
     }
-    setIsSaving(false);
   };
 
-  // 撤销所有未保存的修改
-  const handleUndoAll = () => {
-    // 恢复原始段落数据
-    setParagraphs(originalParagraphs);
-    calculateTotalDuration(originalParagraphs);
-    // 清空脏状态
-    setDirtyParagraphs(new Set());
-    // 如果有选中的段落，重新加载其表单
-    if (selectedParagraphId) {
-      const paragraph = originalParagraphs.find((p) => p.id === selectedParagraphId);
-      if (paragraph) {
-        setEditForm({
-          content: paragraph.content,
-          speaker: paragraph.speaker || '',
-          tone: paragraph.tone || 'neutral',
-          speed: paragraph.speed || DefSpeed,
-        });
-      } else if (originalParagraphs.length > 0) {
-        // 如果原来选中的段落不存在了，选中第一个
-        handleSelectParagraph(originalParagraphs[0].id);
-      } else {
-        setSelectedParagraphId(null);
-      }
+  // 处理表单变更 - 更新即保存
+  const handleFormChange = async (field: string, value: any) => {
+    const newEditForm = { ...editForm, [field]: value };
+    setEditForm(newEditForm);
+
+    if (!selectedParagraphId) return;
+
+    // 立即更新段落列表
+    const updatedParagraphs = paragraphs.map((p) =>
+      p.id === selectedParagraphId
+        ? { ...p, ...newEditForm, voiceId: p.voiceId } // 保留 voiceId
+        : p
+    );
+    setParagraphs(updatedParagraphs);
+    setOriginalParagraphs(updatedParagraphs);
+
+    // 保存到后端
+    const paragraph = updatedParagraphs.find(p => p.id === selectedParagraphId);
+    if (paragraph) {
+      setIsSaving(true);
+      await saveParagraph(paragraph);
+      setIsSaving(false);
     }
   };
 
@@ -383,35 +340,10 @@ const ChapterEditor: React.FC = () => {
     }
   };
 
-  // 生成整个章节的音频
+  // 生成整个章节的音频 - 直接覆盖所有
   const handleGenerateChapterAudio = async () => {
     if (!chapterId) return;
-
-    const paragraphsWithoutAudio = paragraphs.filter(p => !p.audioPath);
-    if (paragraphsWithoutAudio.length === 0) {
-      setConfirmModal({
-        isOpen: true,
-        title: '重新生成音频',
-        message: '所有段落都已有音频，确定要重新生成吗？',
-        type: 'warning',
-        onConfirm: () => {
-          setConfirmModal(prev => ({ ...prev, isOpen: false }));
-          doGenerateChapterAudio(paragraphs.map(p => p.id));
-        },
-      });
-      return;
-    }
-
-    setConfirmModal({
-      isOpen: true,
-      title: '生成章节音频',
-      message: `将为 ${paragraphsWithoutAudio.length} 个段落生成音频，确定继续吗？`,
-      type: 'info',
-      onConfirm: () => {
-        setConfirmModal(prev => ({ ...prev, isOpen: false }));
-        doGenerateChapterAudio(paragraphsWithoutAudio.map(p => p.id));
-      },
-    });
+    doGenerateChapterAudio(paragraphs.map(p => p.id));
   };
 
   // 执行生成章节音频
@@ -516,12 +448,16 @@ const ChapterEditor: React.FC = () => {
       // 短暂显示完成状态
       await new Promise(resolve => setTimeout(resolve, 500));
 
-      // 更新本地状态
-      const sortedParas = [...newParagraphs].sort((a, b) => a.orderIndex - b.orderIndex);
+      // 更新本地状态，清空已生成的音频
+      const sortedParas = [...newParagraphs].sort((a, b) => a.orderIndex - b.orderIndex).map(p => ({
+        ...p,
+        audioPath: '',
+        audioData: '',
+        duration: 0
+      }));
       setParagraphs(sortedParas);
       setOriginalParagraphs(sortedParas);
       calculateTotalDuration(sortedParas);
-      setDirtyParagraphs(new Set());
 
       // 默认选中第一个段落
       if (sortedParas.length > 0) {
@@ -586,10 +522,16 @@ const ChapterEditor: React.FC = () => {
     doGenerateScript();
   };
 
-  // 播放单个段落音频
-  const handlePlayParagraphAudio = async (paragraph: Paragraph) => {
+  // 只播放单个段落音频（不续播下一个）
+  const handlePlaySingleParagraphAudio = async (paragraph: Paragraph) => {
     if (!paragraph.audioData) {
       console.warn('No audio data for paragraph:', paragraph.id);
+      return;
+    }
+
+    // 如果正在播放这个段落，则停止
+    if (playingParagraphId === paragraph.id) {
+      handleStopAudio();
       return;
     }
 
@@ -619,20 +561,26 @@ const ChapterEditor: React.FC = () => {
       const audio = new Audio(url);
       audioRef.current = audio;
       setPlayingParagraphId(paragraph.id);
+      setIsPlaying(true);
 
       // 开始播放进度更新
       startPlayProgress(startTime, paragraph.duration || 2);
 
       audio.onended = () => {
         stopPlayProgress();
-        setPlayingParagraphId(null);
         URL.revokeObjectURL(url);
+        // 只播放单个段落，播放结束后停止
+        setPlayingParagraphId(null);
+        setIsPlaying(false);
+        setCurrentPlayIndex(-1);
       };
 
       audio.onerror = (e) => {
         console.error('Audio playback error:', e);
         stopPlayProgress();
         setPlayingParagraphId(null);
+        setIsPlaying(false);
+        setCurrentPlayIndex(-1);
         URL.revokeObjectURL(url);
       };
 
@@ -641,6 +589,90 @@ const ChapterEditor: React.FC = () => {
       console.error('Failed to play audio:', error);
       stopPlayProgress();
       setPlayingParagraphId(null);
+      setIsPlaying(false);
+      setCurrentPlayIndex(-1);
+    }
+  };
+
+  // 播放单个段落音频（支持续播下一个，用于时间轴播放按钮）
+  const handlePlayParagraphAudio = async (paragraph: Paragraph) => {
+    if (!paragraph.audioData) {
+      console.warn('No audio data for paragraph:', paragraph.id);
+      return;
+    }
+
+    // 如果正在播放这个段落，则停止
+    if (playingParagraphId === paragraph.id) {
+      handleStopAudio();
+      return;
+    }
+
+    // 找到该段落在有音频列表中的索引
+    const paragraphsWithAudio = getParagraphsWithAudio();
+    const index = paragraphsWithAudio.findIndex(p => p.id === paragraph.id);
+    if (index >= 0) {
+      setCurrentPlayIndex(index);
+    }
+
+    // 停止当前播放
+    stopPlayProgress();
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+    }
+
+    // 找到该段落的起始时间
+    const segment = timelineSegments.find(s => s.id === paragraph.id);
+    const startTime = segment ? segment.start : 0;
+    setCurrentTime(startTime);
+
+    try {
+      // 将 base64 转换为 blob URL
+      const binaryString = atob(paragraph.audioData);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+      const blob = new Blob([bytes], { type: 'audio/mpeg' });
+      const url = URL.createObjectURL(blob);
+
+      // 创建新的 audio 元素
+      const audio = new Audio(url);
+      audioRef.current = audio;
+      setPlayingParagraphId(paragraph.id);
+      setIsPlaying(true);
+
+      // 开始播放进度更新
+      startPlayProgress(startTime, paragraph.duration || 2);
+
+      audio.onended = () => {
+        stopPlayProgress();
+        URL.revokeObjectURL(url);
+        // 播放下一个段落
+        if (index >= 0) {
+          playParagraphByIndex(index + 1);
+        } else {
+          setPlayingParagraphId(null);
+          setIsPlaying(false);
+        }
+      };
+
+      audio.onerror = (e) => {
+        console.error('Audio playback error:', e);
+        stopPlayProgress();
+        setPlayingParagraphId(null);
+        setIsPlaying(false);
+        setCurrentPlayIndex(-1);
+        URL.revokeObjectURL(url);
+      };
+
+      await audio.play();
+    } catch (error) {
+      console.error('Failed to play audio:', error);
+      stopPlayProgress();
+      setPlayingParagraphId(null);
+      setIsPlaying(false);
+      setCurrentPlayIndex(-1);
     }
   };
 
@@ -664,6 +696,80 @@ const ChapterEditor: React.FC = () => {
     }
   };
 
+  // 获取有音频的段落列表
+  const getParagraphsWithAudio = (): Paragraph[] => {
+    return paragraphs.filter(p => p.audioData || p.audioPath);
+  };
+
+  // 播放指定索引的段落
+  const playParagraphByIndex = async (index: number) => {
+    const paragraphsWithAudio = getParagraphsWithAudio();
+    if (index < 0 || index >= paragraphsWithAudio.length) {
+      // 播放结束
+      handleStopAudio();
+      return;
+    }
+
+    const paragraph = paragraphsWithAudio[index];
+    setCurrentPlayIndex(index);
+
+    // 停止当前播放
+    stopPlayProgress();
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+    }
+
+    // 找到该段落的起始时间
+    const segment = timelineSegments.find(s => s.id === paragraph.id);
+    const startTime = segment ? segment.start : 0;
+    setCurrentTime(startTime);
+
+    try {
+      // 将 base64 转换为 blob URL
+      const binaryString = atob(paragraph.audioData || '');
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+      const blob = new Blob([bytes], { type: 'audio/mpeg' });
+      const url = URL.createObjectURL(blob);
+
+      // 创建新的 audio 元素
+      const audio = new Audio(url);
+      audioRef.current = audio;
+      setPlayingParagraphId(paragraph.id);
+      setIsPlaying(true);
+
+      // 开始播放进度更新
+      startPlayProgress(startTime, paragraph.duration || 2);
+
+      audio.onended = () => {
+        stopPlayProgress();
+        URL.revokeObjectURL(url);
+        // 播放下一个段落
+        playParagraphByIndex(index + 1);
+      };
+
+      audio.onerror = (e) => {
+        console.error('Audio playback error:', e);
+        stopPlayProgress();
+        setPlayingParagraphId(null);
+        setIsPlaying(false);
+        setCurrentPlayIndex(-1);
+        URL.revokeObjectURL(url);
+      };
+
+      await audio.play();
+    } catch (error) {
+      console.error('Failed to play audio:', error);
+      stopPlayProgress();
+      setPlayingParagraphId(null);
+      setIsPlaying(false);
+      setCurrentPlayIndex(-1);
+    }
+  };
+
   // 停止播放
   const handleStopAudio = () => {
     stopPlayProgress();
@@ -672,11 +778,37 @@ const ChapterEditor: React.FC = () => {
       audioRef.current.currentTime = 0;
     }
     setPlayingParagraphId(null);
+    setIsPlaying(false);
+    setCurrentPlayIndex(-1);
   };
 
-  // 播放控制
+  // 播放控制 - 播放全部或暂停
   const togglePlay = () => {
-    setIsPlaying(!isPlaying);
+    if (isPlaying) {
+      // 暂停播放
+      handleStopAudio();
+    } else {
+      // 开始播放全部
+      const paragraphsWithAudio = getParagraphsWithAudio();
+      if (paragraphsWithAudio.length === 0) {
+        console.warn('No audio to play');
+        return;
+      }
+
+      // 如果有正在播放的段落，继续从下一个开始；否则从头开始
+      let startIndex = 0;
+      if (currentPlayIndex >= 0 && currentPlayIndex < paragraphsWithAudio.length) {
+        startIndex = currentPlayIndex;
+      } else if (playingParagraphId) {
+        // 找到当前播放段落的索引
+        const currentIndex = paragraphsWithAudio.findIndex(p => p.id === playingParagraphId);
+        if (currentIndex >= 0) {
+          startIndex = currentIndex;
+        }
+      }
+
+      playParagraphByIndex(startIndex);
+    }
   };
 
   // 格式化时间显示
@@ -762,28 +894,6 @@ const ChapterEditor: React.FC = () => {
             <h1>{chapter.title}</h1>
             <p className="subtitle">章节编辑 · 时间轴视图</p>
           </div>
-          {dirtyParagraphs.size > 0 && (
-            <div className="dirty-indicator-wrapper">
-              <div className="dirty-indicator">
-                <AlertCircle size={14} />
-                <span>{dirtyParagraphs.size} 个未保存修改</span>
-              </div>
-              <button
-                className="undo-btn"
-                onClick={handleUndoAll}
-                disabled={isSaving}
-              >
-                <X size={14} />
-                撤销
-              </button>
-            </div>
-          )}
-          {saveSuccess && (
-            <div className="save-success">
-              <Check size={14} />
-              <span>已保存</span>
-            </div>
-          )}
         </div>
         <div className="header-right">
           <button
@@ -792,14 +902,6 @@ const ChapterEditor: React.FC = () => {
           >
             <FileText size={16} />
             编辑文本
-          </button>
-          <button
-            className={`btn-save ${dirtyParagraphs.size > 0 ? 'dirty' : ''}`}
-            onClick={handleSaveAll}
-            disabled={dirtyParagraphs.size === 0 || isSaving}
-          >
-            <Save size={16} />
-            {isSaving ? '保存中...' : '保存'}
           </button>
           <div className="generate-button-wrapper">
             <button
@@ -889,9 +991,6 @@ const ChapterEditor: React.FC = () => {
                         <Clock size={10} />
                         {(paragraph.duration || 0).toFixed(1)}s
                       </span>
-                      {isParagraphDirty(paragraph.id) && (
-                        <span className="dirty-dot" title="有未保存的修改"></span>
-                      )}
                     </div>
                     <p className="paragraph-item-text">
                       {paragraph.content}
@@ -906,7 +1005,7 @@ const ChapterEditor: React.FC = () => {
                           if (playingParagraphId === paragraph.id) {
                             handleStopAudio();
                           } else {
-                            handlePlayParagraphAudio(paragraph);
+                            handlePlaySingleParagraphAudio(paragraph);
                           }
                         }}
                         title={playingParagraphId === paragraph.id ? "停止" : "试听"}
@@ -928,12 +1027,6 @@ const ChapterEditor: React.FC = () => {
           <div className="paragraph-detail-panel">
             <div className="panel-header">
               <h2>段落详情</h2>
-              {selectedParagraphId && isParagraphDirty(selectedParagraphId) && (
-                <span className="dirty-badge">
-                  <AlertCircle size={12} />
-                  未保存
-                </span>
-              )}
             </div>
             {selectedParagraph ? (
               <div className="panel-content">
@@ -1021,16 +1114,39 @@ const ChapterEditor: React.FC = () => {
                   <div className="form-group">
                     <div className="label-row">
                       <label>语速</label>
-                      <span className="value-badge">{editForm.speed.toFixed(2)}</span>
+                      <span className="value-badge">{convertSpeedToRatio(editForm.speed).toFixed(2)}x</span>
                     </div>
                     <input
                       type="range"
-                      min="0.5"
-                      max="2.0"
-                      step="0.05"
+                      min="-50"
+                      max="100"
+                      step="1"
                       value={editForm.speed}
                       onChange={(e) =>
-                        handleFormChange('speed', parseFloat(e.target.value))}
+                        handleFormChange('speed', parseInt(e.target.value))}
+                    />
+                    <div className="range-labels">
+                      <span>0.5x</span>
+                      <span>1.0x</span>
+                      <span>2.0x</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="form-row">
+                  <div className="form-group">
+                    <div className="label-row">
+                      <label>音量</label>
+                      <span className="value-badge">{convertVolumeToRatio(editForm.volume).toFixed(2)}x</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="-50"
+                      max="100"
+                      step="1"
+                      value={editForm.volume}
+                      onChange={(e) =>
+                        handleFormChange('volume', parseInt(e.target.value))}
                     />
                     <div className="range-labels">
                       <span>0.5x</span>
@@ -1101,7 +1217,7 @@ const ChapterEditor: React.FC = () => {
                       key={segment.id}
                       className={`timeline-clip ${
                         selectedParagraphId === segment.id ? 'selected' : ''
-                      } ${isParagraphDirty(segment.id) ? 'dirty' : ''} ${
+                      } ${
                         playingParagraphId === segment.id ? 'playing' : ''
                       }`}
                       style={{
@@ -1141,11 +1257,6 @@ const ChapterEditor: React.FC = () => {
                           {segment.paragraph.content.length > 40 ? '...' : ''}
                         </div>
                       </div>
-                      {isParagraphDirty(segment.id) && (
-                        <div className="clip-dirty-indicator">
-                          <AlertCircle size={10} />
-                        </div>
-                      )}
                       {segment.paragraph.audioPath && (
                         <div className="clip-indicator">
                           <Music size={12} />

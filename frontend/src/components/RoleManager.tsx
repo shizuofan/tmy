@@ -1,18 +1,11 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import {
   Trash2,
-  Bot,
-  Volume2,
   Edit2,
   X,
   Search,
   ChevronLeft,
   ChevronRight,
-  User,
-  Calendar,
-  Users,
-  BookOpen,
-  Clock,
 } from 'lucide-react';
 import api from '../utils/api';
 import { Character, Voice, GenderNameMap, AgeNameMap, GenderMale, GenderFemale, GenderUnknown, AgeChild, AgeTeen, AgeAdult, AgeSenior, AgeUnknown } from '../types';
@@ -38,7 +31,7 @@ interface RoleManagerProps {
 }
 
 // 每页显示数量
-const PAGE_SIZE = 10;
+const PAGE_SIZE = 12;
 
 const RoleManager: React.FC<RoleManagerProps> = ({ projectId }) => {
   const [characters, setCharacters] = useState<Character[]>([]);
@@ -293,7 +286,6 @@ const RoleManager: React.FC<RoleManagerProps> = ({ projectId }) => {
     <div className="role-manager">
       <div className="role-manager-header">
         <div className="header-left">
-          <Bot size={20} />
           <h2>角色管理</h2>
           {filteredCharacters.length > 0 && (
             <span className="count-badge">{filteredCharacters.length}</span>
@@ -302,10 +294,10 @@ const RoleManager: React.FC<RoleManagerProps> = ({ projectId }) => {
 
         {/* 搜索框 */}
         <div className="search-box">
-          <Search size={16} />
+          <Search size={14} />
           <input
             type="text"
-            placeholder="搜索角色名称、别名或简介..."
+            placeholder="搜索角色..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="search-input"
@@ -315,7 +307,7 @@ const RoleManager: React.FC<RoleManagerProps> = ({ projectId }) => {
               className="btn-clear-search"
               onClick={() => setSearchQuery('')}
             >
-              <X size={14} />
+              <X size={12} />
             </button>
           )}
         </div>
@@ -329,7 +321,6 @@ const RoleManager: React.FC<RoleManagerProps> = ({ projectId }) => {
           </div>
         ) : filteredCharacters.length === 0 ? (
           <div className="empty-state">
-            <Bot size={48} />
             <h3>暂无角色</h3>
             <p>使用 LLM 解析文本后，识别到的角色会显示在这里</p>
           </div>
@@ -344,8 +335,8 @@ const RoleManager: React.FC<RoleManagerProps> = ({ projectId }) => {
                     <th className="col-name">姓名</th>
                     <th className="col-chapters">出现章节</th>
                     <th className="col-aliases">别名</th>
-                    <th className="col-gender">推测性别</th>
-                    <th className="col-age">推测年龄</th>
+                    <th className="col-gender">性别</th>
+                    <th className="col-age">年龄</th>
                     <th className="col-voice">音色</th>
                     <th className="col-desc">简介</th>
                     <th className="col-updated">最后发现</th>
@@ -358,17 +349,6 @@ const RoleManager: React.FC<RoleManagerProps> = ({ projectId }) => {
                       <tr className={character.id === 0 ? 'narrator-row' : 'character-row'}>
                         <td className="col-name">
                           <div className="name-cell">
-                            <div
-                              className={`role-avatar-small ${
-                                character.id === 0 ? 'narrator-avatar' : 'known-avatar'
-                              }`}
-                            >
-                              {character.id === 0 ? (
-                                <BookOpen size={14} />
-                              ) : (
-                                <User size={14} />
-                              )}
-                            </div>
                             <span className="character-name">{character.name}</span>
                             {character.id === 0 && (
                               <span className="badge narrator-badge">系统</span>
@@ -421,7 +401,6 @@ const RoleManager: React.FC<RoleManagerProps> = ({ projectId }) => {
                             </select>
                           ) : (
                             <span className="gender-badge">
-                              <User size={12} />
                               {displayGender(character.gender)}
                             </span>
                           )}
@@ -443,33 +422,29 @@ const RoleManager: React.FC<RoleManagerProps> = ({ projectId }) => {
                             </select>
                           ) : (
                             <span className="age-badge">
-                              <Calendar size={12} />
                               {displayAge(character.age)}
                             </span>
                           )}
                         </td>
 
                         <td className="col-voice">
-                          <div className="voice-select-cell">
-                            <Volume2 size={14} />
-                            <select
-                              className="voice-select-inline"
-                              value={character.voiceId || ''}
-                              onChange={(e) => handleVoiceChange(character.id, e.target.value)}
-                              disabled={isLoading}
-                            >
-                              <option value="">选择音色</option>
-                              {Object.entries(groupedVoices).map(([category, categoryVoices]) => (
-                                <optgroup key={category} label={CategoryNameMap[category] || category}>
-                                  {categoryVoices.map((voice) => (
-                                    <option key={voice.id} value={voice.id}>
-                                      {voice.name} {voice.gender ? `(${VoiceGenderNameMap[voice.gender] || voice.gender})` : ''}
-                                    </option>
-                                  ))}
-                                </optgroup>
-                              ))}
-                            </select>
-                          </div>
+                          <select
+                            className="voice-select-inline"
+                            value={character.voiceId || ''}
+                            onChange={(e) => handleVoiceChange(character.id, e.target.value)}
+                            disabled={isLoading}
+                          >
+                            <option value="">选择音色</option>
+                            {Object.entries(groupedVoices).map(([category, categoryVoices]) => (
+                              <optgroup key={category} label={CategoryNameMap[category] || category}>
+                                {categoryVoices.map((voice) => (
+                                  <option key={voice.id} value={voice.id}>
+                                    {voice.name} {voice.gender ? `(${VoiceGenderNameMap[voice.gender] || voice.gender})` : ''}
+                                  </option>
+                                ))}
+                              </optgroup>
+                            ))}
+                          </select>
                         </td>
 
                         <td className="col-desc">
@@ -493,7 +468,6 @@ const RoleManager: React.FC<RoleManagerProps> = ({ projectId }) => {
 
                         <td className="col-updated">
                           <span className="last-seen">
-                            <Clock size={12} />
                             {displayLastSeen((character as any).lastSeenAt)}
                           </span>
                         </td>
@@ -527,7 +501,7 @@ const RoleManager: React.FC<RoleManagerProps> = ({ projectId }) => {
                                     <Edit2 size={14} />
                                   </button>
                                   <button
-                                    className="btn-icon btn-danger"
+                                    className="btn-icon"
                                     onClick={() => handleDeleteCharacter(character.id)}
                                     disabled={isLoading}
                                     title="删除"
@@ -554,7 +528,7 @@ const RoleManager: React.FC<RoleManagerProps> = ({ projectId }) => {
                   onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                   disabled={currentPage === 1}
                 >
-                  <ChevronLeft size={16} />
+                  <ChevronLeft size={14} />
                 </button>
 
                 <span className="page-info">
@@ -566,7 +540,7 @@ const RoleManager: React.FC<RoleManagerProps> = ({ projectId }) => {
                   onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                   disabled={currentPage === totalPages}
                 >
-                  <ChevronRight size={16} />
+                  <ChevronRight size={14} />
                 </button>
               </div>
             )}
@@ -588,45 +562,45 @@ const RoleManager: React.FC<RoleManagerProps> = ({ projectId }) => {
           display: flex;
           justify-content: space-between;
           align-items: center;
-          padding: 16px 20px;
+          padding: 10px 16px;
           background: linear-gradient(135deg, #1E2A3A 0%, #1A2432 100%);
           border-bottom: 1px solid #2D3E54;
-          gap: 16px;
+          gap: 12px;
         }
 
         .header-left {
           display: flex;
           align-items: center;
-          gap: 10px;
+          gap: 8px;
           color: #CBD5E1;
           flex-shrink: 0;
         }
 
         .header-left h2 {
           margin: 0;
-          font-size: 1rem;
+          font-size: 0.95rem;
           font-weight: 600;
         }
 
         .count-badge {
-          padding: 2px 10px;
+          padding: 1px 8px;
           background: #10B981;
           color: white;
-          border-radius: 12px;
-          font-size: 0.8rem;
+          border-radius: 10px;
+          font-size: 0.75rem;
           font-weight: 600;
         }
 
         .search-box {
           display: flex;
           align-items: center;
-          gap: 8px;
+          gap: 6px;
           background-color: #151E2B;
           border: 1px solid #2D3E54;
-          border-radius: 8px;
-          padding: 6px 12px;
+          border-radius: 6px;
+          padding: 4px 10px;
           flex: 1;
-          max-width: 400px;
+          max-width: 320px;
           transition: all 0.2s ease;
         }
 
@@ -645,7 +619,7 @@ const RoleManager: React.FC<RoleManagerProps> = ({ projectId }) => {
           background: transparent;
           border: none;
           color: #E2E8F0;
-          font-size: 0.9rem;
+          font-size: 0.85rem;
           outline: none;
         }
 
@@ -686,8 +660,8 @@ const RoleManager: React.FC<RoleManagerProps> = ({ projectId }) => {
         }
 
         .table-scroll-wrapper::-webkit-scrollbar {
-          height: 10px;
-          width: 10px;
+          height: 8px;
+          width: 8px;
         }
 
         .table-scroll-wrapper::-webkit-scrollbar-track {
@@ -696,7 +670,7 @@ const RoleManager: React.FC<RoleManagerProps> = ({ projectId }) => {
 
         .table-scroll-wrapper::-webkit-scrollbar-thumb {
           background: #334155;
-          border-radius: 5px;
+          border-radius: 4px;
         }
 
         .table-scroll-wrapper::-webkit-scrollbar-thumb:hover {
@@ -708,18 +682,18 @@ const RoleManager: React.FC<RoleManagerProps> = ({ projectId }) => {
           flex-direction: column;
           align-items: center;
           justify-content: center;
-          padding: 48px;
+          padding: 32px;
           color: #64748B;
         }
 
         .spinner {
-          width: 28px;
-          height: 28px;
-          border: 3px solid #334155;
-          border-top: 3px solid #10B981;
+          width: 24px;
+          height: 24px;
+          border: 2px solid #334155;
+          border-top: 2px solid #10B981;
           border-radius: 50%;
           animation: spin 1s linear infinite;
-          margin-bottom: 12px;
+          margin-bottom: 10px;
         }
 
         @keyframes spin {
@@ -729,14 +703,14 @@ const RoleManager: React.FC<RoleManagerProps> = ({ projectId }) => {
 
         .empty-state {
           text-align: center;
-          padding: 48px;
+          padding: 32px;
           color: #64748B;
         }
 
         .empty-state h3 {
-          margin: 16px 0 8px;
+          margin: 12px 0 6px;
           color: #E2E8F0;
-          font-size: 1.05rem;
+          font-size: 1rem;
         }
 
         .role-table {
@@ -753,9 +727,9 @@ const RoleManager: React.FC<RoleManagerProps> = ({ projectId }) => {
         }
 
         .role-table th {
-          padding: 12px 16px;
+          padding: 8px 12px;
           text-align: left;
-          font-size: 0.75rem;
+          font-size: 0.72rem;
           font-weight: 600;
           color: #94A3B8;
           text-transform: uppercase;
@@ -764,7 +738,7 @@ const RoleManager: React.FC<RoleManagerProps> = ({ projectId }) => {
         }
 
         .role-table td {
-          padding: 12px 16px;
+          padding: 8px 12px;
           border-bottom: 1px solid #243447;
           vertical-align: middle;
         }
@@ -781,52 +755,33 @@ const RoleManager: React.FC<RoleManagerProps> = ({ projectId }) => {
           background-color: rgba(0, 168, 255, 0.04);
         }
 
-        /* 列宽 - 优化后更紧凑 */
-        .col-name { width: 150px; min-width: 150px; }
-        .col-chapters { width: 100px; min-width: 100px; }
-        .col-aliases { width: 110px; min-width: 110px; }
-        .col-gender { width: 90px; min-width: 90px; }
-        .col-age { width: 90px; min-width: 90px; }
-        .col-voice { width: 140px; min-width: 140px; }
-        .col-desc { width: 200px; min-width: 200px; }
-        .col-updated { width: 95px; min-width: 95px; }
-        .col-actions { width: 90px; min-width: 90px; }
+        /* 列宽 - 更紧凑 */
+        .col-name { width: 120px; min-width: 120px; }
+        .col-chapters { width: 90px; min-width: 90px; }
+        .col-aliases { width: 100px; min-width: 100px; }
+        .col-gender { width: 60px; min-width: 60px; }
+        .col-age { width: 60px; min-width: 60px; }
+        .col-voice { width: 130px; min-width: 130px; }
+        .col-desc { width: 160px; min-width: 160px; }
+        .col-updated { width: 80px; min-width: 80px; }
+        .col-actions { width: 80px; min-width: 80px; }
 
         .name-cell {
           display: flex;
           align-items: center;
-          gap: 10px;
-        }
-
-        .role-avatar-small {
-          width: 32px;
-          height: 32px;
-          border-radius: 8px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          color: white;
-          flex-shrink: 0;
-        }
-
-        .role-avatar-small.known-avatar {
-          background: linear-gradient(135deg, #10B981 0%, #059669 100%);
-        }
-
-        .role-avatar-small.narrator-avatar {
-          background: linear-gradient(135deg, #00A8FF 0%, #0088CC 100%);
+          gap: 6px;
         }
 
         .character-name {
           color: #F1F5F9;
           font-weight: 500;
-          font-size: 0.9rem;
+          font-size: 0.85rem;
         }
 
         .badge {
-          padding: 2px 8px;
-          border-radius: 4px;
-          font-size: 0.7rem;
+          padding: 1px 6px;
+          border-radius: 3px;
+          font-size: 0.68rem;
           font-weight: 500;
           flex-shrink: 0;
         }
@@ -843,47 +798,28 @@ const RoleManager: React.FC<RoleManagerProps> = ({ projectId }) => {
 
         .chapter-list {
           color: #94A3B8;
-          font-size: 0.85rem;
+          font-size: 0.8rem;
         }
 
         .alias-list {
           color: #94A3B8;
-          font-size: 0.85rem;
+          font-size: 0.8rem;
         }
 
         .gender-badge,
         .age-badge {
-          display: inline-flex;
-          align-items: center;
-          gap: 4px;
           color: #94A3B8;
-          font-size: 0.85rem;
-        }
-
-        .gender-badge svg,
-        .age-badge svg {
-          color: #64748B;
-        }
-
-        .voice-select-cell {
-          display: flex;
-          align-items: center;
-          gap: 6px;
-        }
-
-        .voice-select-cell svg {
-          color: #00A8FF;
-          flex-shrink: 0;
+          font-size: 0.8rem;
         }
 
         .voice-select-inline {
-          flex: 1;
+          width: 100%;
           padding: 4px 8px;
           background-color: #151E2B;
           border: 1px solid #2D3E54;
-          border-radius: 6px;
+          border-radius: 4px;
           color: #E2E8F0;
-          font-size: 0.8rem;
+          font-size: 0.78rem;
           cursor: pointer;
           transition: all 0.2s ease;
         }
@@ -900,7 +836,7 @@ const RoleManager: React.FC<RoleManagerProps> = ({ projectId }) => {
 
         .description-text {
           color: #94A3B8;
-          font-size: 0.85rem;
+          font-size: 0.8rem;
           display: -webkit-box;
           -webkit-line-clamp: 2;
           -webkit-box-orient: vertical;
@@ -908,15 +844,8 @@ const RoleManager: React.FC<RoleManagerProps> = ({ projectId }) => {
         }
 
         .last-seen {
-          display: inline-flex;
-          align-items: center;
-          gap: 4px;
           color: #64748B;
-          font-size: 0.8rem;
-        }
-
-        .last-seen svg {
-          color: #475569;
+          font-size: 0.78rem;
         }
 
         .actions-cell {
@@ -926,15 +855,15 @@ const RoleManager: React.FC<RoleManagerProps> = ({ projectId }) => {
 
         .edit-actions-inline {
           display: flex;
-          gap: 6px;
+          gap: 4px;
         }
 
         .btn-icon {
-          width: 28px;
-          height: 28px;
+          width: 24px;
+          height: 24px;
           padding: 0;
           border: none;
-          border-radius: 6px;
+          border-radius: 4px;
           background: transparent;
           color: #64748B;
           cursor: pointer;
@@ -949,14 +878,10 @@ const RoleManager: React.FC<RoleManagerProps> = ({ projectId }) => {
           color: #E2E8F0;
         }
 
-        .btn-icon.btn-edit:hover:not(:disabled) {
+        .btn-icon.btn-edit:hover:not(:disabled),
+        .btn-icon.btn-danger:hover:not(:disabled) {
           background: rgba(0, 168, 255, 0.15);
           color: #00A8FF;
-        }
-
-        .btn-icon.btn-danger:hover:not(:disabled) {
-          background: rgba(239, 68, 68, 0.15);
-          color: #EF4444;
         }
 
         .btn-icon:disabled {
@@ -965,16 +890,16 @@ const RoleManager: React.FC<RoleManagerProps> = ({ projectId }) => {
         }
 
         .btn-ghost {
-          padding: 6px 12px;
+          padding: 4px 8px;
           border: 1px solid transparent;
           background: transparent;
           color: #94A3B8;
-          border-radius: 6px;
+          border-radius: 4px;
           cursor: pointer;
           display: inline-flex;
           align-items: center;
-          gap: 6px;
-          font-size: 0.8rem;
+          gap: 4px;
+          font-size: 0.78rem;
           transition: all 0.2s ease;
         }
 
@@ -984,20 +909,20 @@ const RoleManager: React.FC<RoleManagerProps> = ({ projectId }) => {
         }
 
         .btn-ghost.btn-small {
-          padding: 4px 8px;
+          padding: 3px 6px;
         }
 
         .btn-primary {
-          padding: 6px 12px;
+          padding: 4px 8px;
           border: none;
           background: linear-gradient(135deg, #00A8FF 0%, #0088CC 100%);
           color: white;
-          border-radius: 6px;
+          border-radius: 4px;
           cursor: pointer;
           display: inline-flex;
           align-items: center;
-          gap: 6px;
-          font-size: 0.8rem;
+          gap: 4px;
+          font-size: 0.78rem;
           font-weight: 500;
           transition: all 0.2s ease;
         }
@@ -1008,7 +933,7 @@ const RoleManager: React.FC<RoleManagerProps> = ({ projectId }) => {
         }
 
         .btn-primary.btn-small {
-          padding: 4px 8px;
+          padding: 3px 6px;
         }
 
         .edit-input-inline {
@@ -1016,9 +941,9 @@ const RoleManager: React.FC<RoleManagerProps> = ({ projectId }) => {
           padding: 4px 8px;
           background-color: #151E2B;
           border: 1px solid #2D3E54;
-          border-radius: 6px;
+          border-radius: 4px;
           color: #E2E8F0;
-          font-size: 0.8rem;
+          font-size: 0.78rem;
         }
 
         .edit-input-inline:focus {
@@ -1032,9 +957,9 @@ const RoleManager: React.FC<RoleManagerProps> = ({ projectId }) => {
           padding: 4px 8px;
           background-color: #151E2B;
           border: 1px solid #2D3E54;
-          border-radius: 6px;
+          border-radius: 4px;
           color: #E2E8F0;
-          font-size: 0.8rem;
+          font-size: 0.78rem;
         }
 
         .edit-select-inline:focus {
@@ -1047,20 +972,20 @@ const RoleManager: React.FC<RoleManagerProps> = ({ projectId }) => {
           display: flex;
           align-items: center;
           justify-content: center;
-          gap: 16px;
-          padding: 16px;
+          gap: 12px;
+          padding: 10px 16px;
           border-top: 1px solid #243447;
           background: #1A2432;
         }
 
         .btn-page {
-          width: 32px;
-          height: 32px;
+          width: 26px;
+          height: 26px;
           padding: 0;
           border: 1px solid #2D3E54;
           background: #151E2B;
           color: #94A3B8;
-          border-radius: 6px;
+          border-radius: 4px;
           cursor: pointer;
           display: flex;
           align-items: center;
@@ -1080,7 +1005,7 @@ const RoleManager: React.FC<RoleManagerProps> = ({ projectId }) => {
 
         .page-info {
           color: #94A3B8;
-          font-size: 0.85rem;
+          font-size: 0.8rem;
         }
       `}</style>
     </div>

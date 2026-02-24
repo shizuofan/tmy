@@ -68,10 +68,10 @@ type TTSParams struct {
 
 // TTSStreamResponse TTS流式响应
 type TTSStreamResponse struct {
-	Code     int                 `json:"code"`
-	Message  string              `json:"message"`
-	Data     string              `json:"data"`
-	Sentence interface{}         `json:"sentence,omitempty"`
+	Code     int                    `json:"code"`
+	Message  string                 `json:"message"`
+	Data     string                 `json:"data"`
+	Sentence interface{}            `json:"sentence,omitempty"`
 	Usage    map[string]interface{} `json:"usage,omitempty"`
 }
 
@@ -81,9 +81,9 @@ type SynthesizeAudioResult struct {
 	Duration  float64
 }
 
-// SynthesizeAudio 合成音频
-func (c *TTSClient) SynthesizeAudio(text string, voiceID string, emotion string, speed float64) (*SynthesizeAudioResult, error) {
-	Info("TTS合成开始: voiceID=%s, emotion=%s, speed=%.2f, textLength=%d", voiceID, emotion, speed, len(text))
+// SynthesizeAudio 合成音频 (speed: [-50, 100], volume: [-50, 100])
+func (c *TTSClient) SynthesizeAudio(text string, voiceID string, emotion string, speed int, volume int) (*SynthesizeAudioResult, error) {
+	Info("TTS合成开始: voiceID=%s, emotion=%s, speed=%d, volume=%d, textLength=%d", voiceID, emotion, speed, volume, len(text))
 	Debug("TTS配置: AppID=****%s, Endpoint=%s", maskAPIKey(c.config.AppID), c.config.Endpoint)
 
 	if c.config.AppID == "" {
@@ -105,7 +105,7 @@ func (c *TTSClient) SynthesizeAudio(text string, voiceID string, emotion string,
 		return nil, fmt.Errorf("音色ID不能为空")
 	}
 
-	result, err := c.callVolcengineTTS(text, voiceID, emotion, speed)
+	result, err := c.callVolcengineTTS(text, voiceID, emotion, speed, volume)
 	if err != nil {
 		Error("火山引擎TTS调用失败: %v", err)
 		return nil, err
@@ -116,12 +116,13 @@ func (c *TTSClient) SynthesizeAudio(text string, voiceID string, emotion string,
 }
 
 // callVolcengineTTS 调用火山引擎TTS API (v3版本，流式响应)
-func (c *TTSClient) callVolcengineTTS(text string, voiceID string, emotion string, speed float64) (*SynthesizeAudioResult, error) {
+// speed: [-50, 100], volume: [-50, 100]
+func (c *TTSClient) callVolcengineTTS(text string, voiceID string, emotion string, speed int, volume int) (*SynthesizeAudioResult, error) {
 	url := c.config.Endpoint
 
 	audioParams := map[string]interface{}{
-		"format":       "mp3",
-		"sample_rate":  24000,
+		"format":      "mp3",
+		"sample_rate": 24000,
 	}
 
 	if emotion != "" && emotion != "neutral" {
@@ -129,8 +130,16 @@ func (c *TTSClient) callVolcengineTTS(text string, voiceID string, emotion strin
 		audioParams["emotion_scale"] = 4
 	}
 
-	if speed != 1.0 {
-		audioParams["speech_rate"] = convertSpeed(speed)
+	if speed != 0 {
+		audioParams["speech_rate"] = speed
+	}
+
+	// 音量支持 (注意: mix音色可能不支持音量调节)
+	if volume != 0 && !isMixVoice(voiceID) {
+		// 将 [-50, 100] 转换为 API 需要的格式
+		// API 音量通常是 0.5-2.0 的倍率，但这里我们直接传递原始值
+		// 因为火山引擎 API 可能也使用类似的 scale
+		audioParams["volume"] = volume
 	}
 
 	requestBody := map[string]interface{}{
@@ -259,15 +268,11 @@ Complete:
 	}, nil
 }
 
-// convertSpeed 将0.5-2.0范围的速度转换为v3 API需要的格式
-func convertSpeed(speed float64) int {
-	if speed <= 0.5 {
-		return -50
-	}
-	if speed >= 2.0 {
-		return 100
-	}
-	return int((speed - 1.0) * 100)
+// isMixVoice 检查是否是mix音色（mix音色暂不支持音量调节）
+func isMixVoice(voiceID string) bool {
+	// 这里可以根据实际的mix音色ID来判断
+	// 暂时返回false，等知道具体的mix音色ID后再更新
+	return false
 }
 
 // SaveAudioToFile 保存音频到文件

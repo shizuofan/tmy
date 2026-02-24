@@ -46,7 +46,8 @@ export interface Paragraph {
   speaker: string;
   tone: string;
   voiceId: string;
-  speed: number;
+  speed: number;       // 语速 [-50, 100], 100=2.0x, -50=0.5x, 0=1.0x
+  volume: number;      // 音量 [-50, 100], 100=2.0x, -50=0.5x, 0=1.0x
   audioPath: string;
   audioData: string;
   duration: number;
@@ -233,10 +234,35 @@ export const AgeNameMap: Record<string, string> = {
   "unknown": "未知",
 };
 
-// 语速范围
-export const MinSpeed = 0.5;
-export const MaxSpeed = 2.0;
-export const DefSpeed = 1.0;
+// 语速范围 [-50, 100], 100=2.0x, -50=0.5x, 0=1.0x
+export const MinSpeed = -50;
+export const MaxSpeed = 100;
+export const DefSpeed = 0;
+
+// 音量范围 [-50, 100], 100=2.0x, -50=0.5x, 0=1.0x
+export const MinVolume = -50;
+export const MaxVolume = 100;
+export const DefVolume = 0;
+
+// 将语速值[-50,100]转换为倍率显示
+export function convertSpeedToRatio(speed: number): number {
+  if (speed <= 0) {
+    // -50 -> 0.5, 0 -> 1.0
+    return 0.5 + (speed + 50) / 100 * 0.5;
+  }
+  // 0 -> 1.0, 100 -> 2.0
+  return 1.0 + speed / 100 * 1.0;
+}
+
+// 将音量值[-50,100]转换为倍率显示
+export function convertVolumeToRatio(volume: number): number {
+  if (volume <= 0) {
+    // -50 -> 0.5, 0 -> 1.0
+    return 0.5 + (volume + 50) / 100 * 0.5;
+  }
+  // 0 -> 1.0, 100 -> 2.0
+  return 1.0 + volume / 100 * 1.0;
+}
 
 // 应用状态类型
 export interface AppState {

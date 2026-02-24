@@ -308,10 +308,11 @@ export const api = {
     speaker: string,
     tone: string,
     voiceId: string,
-    speed: number
+    speed: number,
+    volume: number
   ): Promise<number> => {
     try {
-      const result = await CreateParagraph(chapterId, content, speaker, tone, voiceId, speed);
+      const result = await CreateParagraph(chapterId, content, speaker, tone, voiceId, speed, volume);
       return result;
     } catch (error) {
       console.error("Failed to create paragraph:", error);
@@ -346,13 +347,14 @@ export const api = {
     tone: string,
     voiceId: string,
     speed: number,
+    volume: number,
     audioPath: string = "",
     audioData: string = "",
     duration: number = 0,
     orderIndex: number = 0
   ): Promise<void> => {
     try {
-      await UpdateParagraph(id, content, speaker, tone, voiceId, speed, audioPath, audioData, duration, orderIndex);
+      await UpdateParagraph(id, content, speaker, tone, voiceId, speed, volume, audioPath, audioData, duration, orderIndex);
     } catch (error) {
       console.error("Failed to update paragraph:", error);
       throw error;

@@ -279,17 +279,17 @@ func toRepoProject(p *models.Project) *repositories.Project {
 		}
 	}
 	return &repositories.Project{
-		ID:               p.ID,
-		Name:             p.Name,
-		Description:      p.Description,
-		LLMApiKey:        p.LLMApiKey,
-		TTSApiKey:        p.TTSApiKey,
-		TTSAppID:         p.TTSAppID,
-		TTSToken:         p.TTSToken,
-		KnownCharacters:  knownCharacters,
-		NarratorVoiceID:  p.NarratorVoiceID,
-		CreatedAt:        p.CreatedAt,
-		UpdatedAt:        p.UpdatedAt,
+		ID:              p.ID,
+		Name:            p.Name,
+		Description:     p.Description,
+		LLMApiKey:       p.LLMApiKey,
+		TTSApiKey:       p.TTSApiKey,
+		TTSAppID:        p.TTSAppID,
+		TTSToken:        p.TTSToken,
+		KnownCharacters: knownCharacters,
+		NarratorVoiceID: p.NarratorVoiceID,
+		CreatedAt:       p.CreatedAt,
+		UpdatedAt:       p.UpdatedAt,
 	}
 }
 
@@ -302,17 +302,17 @@ func toModelsProject(p *repositories.Project) *models.Project {
 		_ = json.Unmarshal([]byte(p.KnownCharacters), &knownCharacters)
 	}
 	return &models.Project{
-		ID:               p.ID,
-		Name:             p.Name,
-		Description:      p.Description,
-		LLMApiKey:        p.LLMApiKey,
-		TTSApiKey:        p.TTSApiKey,
-		TTSAppID:         p.TTSAppID,
-		TTSToken:         p.TTSToken,
-		KnownCharacters:  knownCharacters,
-		NarratorVoiceID:  p.NarratorVoiceID,
-		CreatedAt:        p.CreatedAt,
-		UpdatedAt:        p.UpdatedAt,
+		ID:              p.ID,
+		Name:            p.Name,
+		Description:     p.Description,
+		LLMApiKey:       p.LLMApiKey,
+		TTSApiKey:       p.TTSApiKey,
+		TTSAppID:        p.TTSAppID,
+		TTSToken:        p.TTSToken,
+		KnownCharacters: knownCharacters,
+		NarratorVoiceID: p.NarratorVoiceID,
+		CreatedAt:       p.CreatedAt,
+		UpdatedAt:       p.UpdatedAt,
 	}
 }
 

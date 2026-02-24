@@ -7,7 +7,7 @@ export function CreateChapter(arg1:number,arg2:string,arg3:string):Promise<numbe
 
 export function CreateCharacter(arg1:number,arg2:string,arg3:string,arg4:string):Promise<number>;
 
-export function CreateParagraph(arg1:number,arg2:string,arg3:string,arg4:string,arg5:string,arg6:number):Promise<number>;
+export function CreateParagraph(arg1:number,arg2:string,arg3:string,arg4:string,arg5:string,arg6:number,arg7:number):Promise<number>;
 
 export function CreateProject(arg1:string,arg2:string):Promise<number>;
 
@@ -93,7 +93,7 @@ export function UpdateKnownCharacter(arg1:number,arg2:string,arg3:string,arg4:st
 
 export function UpdateNarratorVoice(arg1:number,arg2:string):Promise<void>;
 
-export function UpdateParagraph(arg1:number,arg2:string,arg3:string,arg4:string,arg5:string,arg6:number,arg7:string,arg8:string,arg9:number,arg10:number):Promise<void>;
+export function UpdateParagraph(arg1:number,arg2:string,arg3:string,arg4:string,arg5:string,arg6:number,arg7:number,arg8:string,arg9:string,arg10:number,arg11:number):Promise<void>;
 
 export function UpdateProject(arg1:number,arg2:string,arg3:string):Promise<void>;
 

@@ -8,6 +8,7 @@ export namespace models {
 	    tone: string;
 	    voiceId: string;
 	    speed: number;
+	    volume: number;
 	    audioPath: string;
 	    audioData: string;
 	    duration: number;
@@ -30,6 +31,7 @@ export namespace models {
 	        this.tone = source["tone"];
 	        this.voiceId = source["voiceId"];
 	        this.speed = source["speed"];
+	        this.volume = source["volume"];
 	        this.audioPath = source["audioPath"];
 	        this.audioData = source["audioData"];
 	        this.duration = source["duration"];

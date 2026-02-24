@@ -124,7 +124,8 @@ func createTables() error {
 			speaker TEXT,
 			tone TEXT DEFAULT 'neutral',
 			voice_id TEXT,
-			speed REAL DEFAULT 1.0,
+			speed INTEGER DEFAULT 0,
+			volume INTEGER DEFAULT 0,
 			audio_path TEXT,
 			audio_data TEXT,
 			duration REAL,
@@ -141,6 +142,16 @@ func createTables() error {
 	// 迁移：为现有 paragraphs 表添加 audio_data 列（如果不存在）
 	if err := addAudioDataColumn(); err != nil {
 		log.Printf("Failed to add audio_data column: %v", err)
+	}
+
+	// 迁移：为现有 paragraphs 表添加 volume 列（如果不存在）
+	if err := addVolumeColumn(); err != nil {
+		log.Printf("Failed to add volume column: %v", err)
+	}
+
+	// 迁移：将 speed 列从 REAL 转换为 INTEGER（如果需要）
+	if err := migrateSpeedColumn(); err != nil {
+		log.Printf("Failed to migrate speed column: %v", err)
 	}
 
 	// 创建 characters 表
@@ -387,7 +398,7 @@ func addTTSTokenColumn() error {
 // addCharacterColumns 为 characters 表添加新列（如果不存在）
 func addCharacterColumns() error {
 	columns := []struct {
-		name string
+		name  string
 		dtype string
 	}{
 		{"gender", "TEXT"},
@@ -431,6 +442,112 @@ func addAudioDataColumn() error {
 		return err
 	}
 	log.Println("Added audio_data column to paragraphs table")
+	return nil
+}
+
+// addVolumeColumn 为 paragraphs 表添加 volume 列（如果不存在）
+func addVolumeColumn() error {
+	var count int
+	err := DB.QueryRow("SELECT COUNT(*) FROM pragma_table_info('paragraphs') WHERE name = 'volume'").Scan(&count)
+	if err != nil {
+		return err
+	}
+	if count > 0 {
+		return nil
+	}
+	_, err = DB.Exec("ALTER TABLE paragraphs ADD COLUMN volume INTEGER DEFAULT 0")
+	if err != nil {
+		return err
+	}
+	log.Println("Added volume column to paragraphs table")
+	return nil
+}
+
+// migrateSpeedColumn 将 speed 列从 REAL 转换为 INTEGER（如果需要）
+func migrateSpeedColumn() error {
+	// 检查 speed 列的类型
+	var colType string
+	err := DB.QueryRow("SELECT type FROM pragma_table_info('paragraphs') WHERE name = 'speed'").Scan(&colType)
+	if err != nil {
+		return err
+	}
+
+	// 如果已经是 INTEGER 类型，不需要迁移
+	if colType == "INTEGER" {
+		return nil
+	}
+
+	log.Println("Migrating speed column from REAL to INTEGER")
+
+	// SQLite 不支持直接修改列类型，需要重建表
+	// 步骤：
+	// 1. 重命名原表
+	// 2. 创建新表
+	// 3. 复制数据（转换 speed 值）
+	// 4. 删除原表
+
+	// 1. 重命名原表
+	_, err = DB.Exec("ALTER TABLE paragraphs RENAME TO paragraphs_old")
+	if err != nil {
+		return err
+	}
+
+	// 2. 创建新表
+	_, err = DB.Exec(`
+		CREATE TABLE paragraphs (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			chapter_id INTEGER NOT NULL,
+			content TEXT NOT NULL,
+			speaker TEXT,
+			tone TEXT DEFAULT 'neutral',
+			voice_id TEXT,
+			speed INTEGER DEFAULT 0,
+			volume INTEGER DEFAULT 0,
+			audio_path TEXT,
+			audio_data TEXT,
+			duration REAL,
+			order_index INTEGER DEFAULT 0,
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			FOREIGN KEY (chapter_id) REFERENCES chapters(id) ON DELETE CASCADE
+		)
+	`)
+	if err != nil {
+		// 出错时恢复原表
+		DB.Exec("ALTER TABLE paragraphs_old RENAME TO paragraphs")
+		return err
+	}
+
+	// 3. 复制数据（转换 speed 值：将 0.5-2.0 转换为 -50-100）
+	_, err = DB.Exec(`
+		INSERT INTO paragraphs (
+			id, chapter_id, content, speaker, tone, voice_id, speed, volume,
+			audio_path, audio_data, duration, order_index, created_at, updated_at
+		)
+		SELECT
+			id, chapter_id, content, speaker, tone, voice_id,
+			CASE
+				WHEN speed <= 1.0 THEN CAST((speed - 1.0) * 100.0 AS INTEGER)
+				ELSE CAST((speed - 1.0) * 100.0 AS INTEGER)
+			END,
+			0,
+			audio_path, audio_data, duration, order_index, created_at, updated_at
+		FROM paragraphs_old
+	`)
+	if err != nil {
+		// 出错时恢复原表
+		DB.Exec("DROP TABLE paragraphs")
+		DB.Exec("ALTER TABLE paragraphs_old RENAME TO paragraphs")
+		return err
+	}
+
+	// 4. 删除原表
+	_, err = DB.Exec("DROP TABLE paragraphs_old")
+	if err != nil {
+		log.Printf("Warning: Failed to drop old table: %v", err)
+	}
+
+	log.Println("Speed column migration completed")
 	return nil
 }
 
