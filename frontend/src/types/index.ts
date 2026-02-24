@@ -19,6 +19,8 @@ export interface Project {
   description: string;
   llmApiKey: string;
   ttsApiKey: string;
+  ttsAppId: string;
+  ttsToken: string;
   knownCharacters: CharacterInfo[];
   narratorVoiceId: string;
   createdAt: string;
@@ -46,6 +48,7 @@ export interface Paragraph {
   voiceId: string;
   speed: number;
   audioPath: string;
+  audioData: string;
   duration: number;
   orderIndex: number;
   createdAt: string;
@@ -75,6 +78,8 @@ export interface Voice {
   description: string;
   supportedTones: string[];
   language: string;
+  gender: string;
+  category: string;
 }
 
 // 情感类型常量 - 中文音色

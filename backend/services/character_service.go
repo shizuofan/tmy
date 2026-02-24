@@ -24,12 +24,15 @@ func NewCharacterService() *CharacterService {
 }
 
 // CreateCharacter 创建角色
-func (s *CharacterService) CreateCharacter(projectID int64, name, description, voiceID string) (int64, error) {
+func (s *CharacterService) CreateCharacter(projectID int64, name, description, voiceID, gender, age string, aliases []string) (int64, error) {
 	character := &repositories.Character{
 		ProjectID:   projectID,
 		Name:        name,
 		Description: description,
 		VoiceID:     voiceID,
+		Gender:      gender,
+		Age:         age,
+		Aliases:     aliases,
 	}
 	if err := s.repo.Create(character); err != nil {
 		return 0, err
@@ -115,7 +118,7 @@ func (s *CharacterService) GetCharacter(id int64) (*models.Character, error) {
 }
 
 // UpdateCharacter 更新角色
-func (s *CharacterService) UpdateCharacter(id int64, name, description, voiceID string) error {
+func (s *CharacterService) UpdateCharacter(id int64, name, description, voiceID, gender, age string, aliases []string) error {
 	if id == 0 {
 		return fmt.Errorf("cannot update narrator character")
 	}
@@ -137,6 +140,9 @@ func (s *CharacterService) UpdateCharacter(id int64, name, description, voiceID 
 	character.Name = name
 	character.Description = description
 	character.VoiceID = voiceID
+	character.Gender = gender
+	character.Age = age
+	character.Aliases = aliases
 	return s.repo.Update(character)
 }
 

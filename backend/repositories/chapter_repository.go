@@ -28,6 +28,7 @@ type Paragraph struct {
 	VoiceID    string    `json:"voiceId"`
 	Speed      float64   `json:"speed"`
 	AudioPath  string    `json:"audioPath"`
+	AudioData  string    `json:"audioData"`
 	Duration   float64   `json:"duration"`
 	OrderIndex int       `json:"orderIndex"`
 	CreatedAt  time.Time `json:"createdAt"`
@@ -173,11 +174,11 @@ func (r *chapterRepository) CreateParagraph(paragraph *Paragraph) error {
 	paragraph.UpdatedAt = now
 
 	result, err := r.getDB().Exec(
-		`INSERT INTO paragraphs (chapter_id, content, speaker, tone, voice_id, speed, audio_path, duration, order_index, created_at, updated_at)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		`INSERT INTO paragraphs (chapter_id, content, speaker, tone, voice_id, speed, audio_path, audio_data, duration, order_index, created_at, updated_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		paragraph.ChapterID, paragraph.Content, paragraph.Speaker, paragraph.Tone,
-		paragraph.VoiceID, paragraph.Speed, paragraph.AudioPath, paragraph.Duration,
-		paragraph.OrderIndex, paragraph.CreatedAt, paragraph.UpdatedAt,
+		paragraph.VoiceID, paragraph.Speed, paragraph.AudioPath, paragraph.AudioData,
+		paragraph.Duration, paragraph.OrderIndex, paragraph.CreatedAt, paragraph.UpdatedAt,
 	)
 	if err != nil {
 		return err
@@ -195,7 +196,7 @@ func (r *chapterRepository) CreateParagraph(paragraph *Paragraph) error {
 // GetParagraphsByChapterID 获取章节的所有段落
 func (r *chapterRepository) GetParagraphsByChapterID(chapterID int64) ([]*Paragraph, error) {
 	rows, err := r.getDB().Query(
-		"SELECT id, chapter_id, content, speaker, tone, voice_id, speed, audio_path, duration, order_index, created_at, updated_at FROM paragraphs WHERE chapter_id = ? ORDER BY order_index ASC",
+		"SELECT id, chapter_id, content, speaker, tone, voice_id, speed, audio_path, audio_data, duration, order_index, created_at, updated_at FROM paragraphs WHERE chapter_id = ? ORDER BY order_index ASC",
 		chapterID,
 	)
 	if err != nil {
@@ -206,11 +207,15 @@ func (r *chapterRepository) GetParagraphsByChapterID(chapterID int64) ([]*Paragr
 	var paragraphs []*Paragraph
 	for rows.Next() {
 		var p Paragraph
+		var audioData sql.NullString
 		if err := rows.Scan(
 			&p.ID, &p.ChapterID, &p.Content, &p.Speaker, &p.Tone, &p.VoiceID,
-			&p.Speed, &p.AudioPath, &p.Duration, &p.OrderIndex, &p.CreatedAt, &p.UpdatedAt,
+			&p.Speed, &p.AudioPath, &audioData, &p.Duration, &p.OrderIndex, &p.CreatedAt, &p.UpdatedAt,
 		); err != nil {
 			return nil, err
+		}
+		if audioData.Valid {
+			p.AudioData = audioData.String
 		}
 		paragraphs = append(paragraphs, &p)
 	}
@@ -221,18 +226,23 @@ func (r *chapterRepository) GetParagraphsByChapterID(chapterID int64) ([]*Paragr
 // GetParagraphByID 根据 ID 获取段落
 func (r *chapterRepository) GetParagraphByID(id int64) (*Paragraph, error) {
 	var p Paragraph
+	var audioData sql.NullString
 	err := r.getDB().QueryRow(
-		"SELECT id, chapter_id, content, speaker, tone, voice_id, speed, audio_path, duration, order_index, created_at, updated_at FROM paragraphs WHERE id = ?",
+		"SELECT id, chapter_id, content, speaker, tone, voice_id, speed, audio_path, audio_data, duration, order_index, created_at, updated_at FROM paragraphs WHERE id = ?",
 		id,
 	).Scan(
 		&p.ID, &p.ChapterID, &p.Content, &p.Speaker, &p.Tone, &p.VoiceID,
-		&p.Speed, &p.AudioPath, &p.Duration, &p.OrderIndex, &p.CreatedAt, &p.UpdatedAt,
+		&p.Speed, &p.AudioPath, &audioData, &p.Duration, &p.OrderIndex, &p.CreatedAt, &p.UpdatedAt,
 	)
 
 	if err == sql.ErrNoRows {
 		return nil, nil
 	} else if err != nil {
 		return nil, err
+	}
+
+	if audioData.Valid {
+		p.AudioData = audioData.String
 	}
 
 	return &p, nil
@@ -243,9 +253,9 @@ func (r *chapterRepository) UpdateParagraph(paragraph *Paragraph) error {
 	paragraph.UpdatedAt = time.Now()
 	_, err := r.getDB().Exec(
 		`UPDATE paragraphs SET content = ?, speaker = ?, tone = ?, voice_id = ?, speed = ?,
-		 audio_path = ?, duration = ?, order_index = ?, updated_at = ? WHERE id = ?`,
+		 audio_path = ?, audio_data = ?, duration = ?, order_index = ?, updated_at = ? WHERE id = ?`,
 		paragraph.Content, paragraph.Speaker, paragraph.Tone, paragraph.VoiceID,
-		paragraph.Speed, paragraph.AudioPath, paragraph.Duration, paragraph.OrderIndex,
+		paragraph.Speed, paragraph.AudioPath, paragraph.AudioData, paragraph.Duration, paragraph.OrderIndex,
 		paragraph.UpdatedAt, paragraph.ID,
 	)
 	return err

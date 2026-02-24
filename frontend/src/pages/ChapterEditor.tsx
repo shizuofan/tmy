@@ -52,6 +52,9 @@ const ChapterEditor: React.FC = () => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [totalDuration, setTotalDuration] = useState(0);
+  const [playingParagraphId, setPlayingParagraphId] = useState<number | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const playProgressIntervalRef = useRef<number | null>(null);
   const [editForm, setEditForm] = useState({
     content: '',
     speaker: '',
@@ -194,7 +197,9 @@ const ChapterEditor: React.FC = () => {
     let currentTime = 0;
     return paragraphs.map((p) => {
       const start = currentTime;
-      const end = currentTime + (p.duration || 2);
+      // 确保每个段落至少有0.1秒的时长，避免重叠
+      const duration = Math.max(p.duration || 0, 0.1);
+      const end = currentTime + duration;
       currentTime = end;
       return { id: p.id, start, end, paragraph: p };
     });
@@ -269,6 +274,7 @@ const ChapterEditor: React.FC = () => {
             paragraph.voiceId,
             paragraph.speed,
             paragraph.audioPath,
+            (paragraph as any).audioData || '',
             paragraph.duration,
             paragraph.orderIndex
           );
@@ -362,7 +368,6 @@ const ChapterEditor: React.FC = () => {
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 2000);
     } catch (error) {
-      console.error('Failed to generate audio:', error);
       let msg = '生成音频失败';
       if (typeof error === 'string') {
         msg = error;
@@ -371,6 +376,7 @@ const ChapterEditor: React.FC = () => {
       } else if (error && typeof error === 'object') {
         msg = (error as any).message || (error as any).error || String(error);
       }
+      console.error('生成音频失败:', msg);
       setErrorTitle('生成音频失败');
       setErrorMessage(msg);
       setShowErrorModal(true);
@@ -434,7 +440,6 @@ const ChapterEditor: React.FC = () => {
         setAudioGenerateProgress(0);
       }, 1500);
     } catch (error) {
-      console.error('Failed to generate chapter audio:', error);
       setIsGeneratingAudio(false);
       setAudioGenerateProgress(0);
       let msg = '生成章节音频失败';
@@ -445,6 +450,7 @@ const ChapterEditor: React.FC = () => {
       } else if (error && typeof error === 'object') {
         msg = (error as any).message || (error as any).error || String(error);
       }
+      console.error('生成章节音频失败:', msg);
       setErrorTitle('生成章节音频失败');
       setErrorMessage(msg);
       setShowErrorModal(true);
@@ -459,10 +465,15 @@ const ChapterEditor: React.FC = () => {
     }
   };
 
-  // 组件卸载时清理定时器
+  // 组件卸载时清理定时器和音频
   useEffect(() => {
     return () => {
       clearProgressInterval();
+      stopPlayProgress();
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
     };
   }, []);
 
@@ -573,6 +584,94 @@ const ChapterEditor: React.FC = () => {
     }
 
     doGenerateScript();
+  };
+
+  // 播放单个段落音频
+  const handlePlayParagraphAudio = async (paragraph: Paragraph) => {
+    if (!paragraph.audioData) {
+      console.warn('No audio data for paragraph:', paragraph.id);
+      return;
+    }
+
+    // 停止当前播放
+    stopPlayProgress();
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+    }
+
+    // 找到该段落的起始时间
+    const segment = timelineSegments.find(s => s.id === paragraph.id);
+    const startTime = segment ? segment.start : 0;
+    setCurrentTime(startTime);
+
+    try {
+      // 将 base64 转换为 blob URL
+      const binaryString = atob(paragraph.audioData);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+      const blob = new Blob([bytes], { type: 'audio/mpeg' });
+      const url = URL.createObjectURL(blob);
+
+      // 创建新的 audio 元素
+      const audio = new Audio(url);
+      audioRef.current = audio;
+      setPlayingParagraphId(paragraph.id);
+
+      // 开始播放进度更新
+      startPlayProgress(startTime, paragraph.duration || 2);
+
+      audio.onended = () => {
+        stopPlayProgress();
+        setPlayingParagraphId(null);
+        URL.revokeObjectURL(url);
+      };
+
+      audio.onerror = (e) => {
+        console.error('Audio playback error:', e);
+        stopPlayProgress();
+        setPlayingParagraphId(null);
+        URL.revokeObjectURL(url);
+      };
+
+      await audio.play();
+    } catch (error) {
+      console.error('Failed to play audio:', error);
+      stopPlayProgress();
+      setPlayingParagraphId(null);
+    }
+  };
+
+  // 开始播放进度更新
+  const startPlayProgress = (startTime: number, duration: number) => {
+    let elapsed = 0;
+    playProgressIntervalRef.current = window.setInterval(() => {
+      elapsed += 0.05;
+      setCurrentTime(startTime + elapsed);
+      if (elapsed >= duration) {
+        stopPlayProgress();
+      }
+    }, 50);
+  };
+
+  // 停止播放进度更新
+  const stopPlayProgress = () => {
+    if (playProgressIntervalRef.current) {
+      clearInterval(playProgressIntervalRef.current);
+      playProgressIntervalRef.current = null;
+    }
+  };
+
+  // 停止播放
+  const handleStopAudio = () => {
+    stopPlayProgress();
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+    }
+    setPlayingParagraphId(null);
   };
 
   // 播放控制
@@ -799,10 +898,25 @@ const ChapterEditor: React.FC = () => {
                     </p>
                   </div>
                   <div className="paragraph-item-right">
-                    {paragraph.audioPath ? (
-                      <span className="has-audio-icon">
-                        <Volume2 size={14} />
-                      </span>
+                    {paragraph.audioData || paragraph.audioPath ? (
+                      <button
+                        className="audio-play-btn"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (playingParagraphId === paragraph.id) {
+                            handleStopAudio();
+                          } else {
+                            handlePlayParagraphAudio(paragraph);
+                          }
+                        }}
+                        title={playingParagraphId === paragraph.id ? "停止" : "试听"}
+                      >
+                        {playingParagraphId === paragraph.id ? (
+                          <Pause size={14} />
+                        ) : (
+                          <Play size={14} />
+                        )}
+                      </button>
                     ) : null}
                   </div>
                 </div>
@@ -971,54 +1085,80 @@ const ChapterEditor: React.FC = () => {
 
             <div className="timeline-container" ref={timelineRef}>
               <div className="timeline-ruler">
-                {Array.from({ length: Math.ceil(totalDuration) + 1 }).map((_, i) => (
-                  <div key={i} className="ruler-mark" style={{ left: `${(i / totalDuration) * 100}%` }}>
+                {Array.from({ length: Math.max(Math.ceil(totalDuration), 1) + 1 }).map((_, i) => (
+                  <div key={i} className="ruler-mark" style={{ left: `${totalDuration > 0 ? (i / totalDuration) * 100 : 0}%` }}>
                     <span className="ruler-label">{i}s</span>
                   </div>
                 ))}
               </div>
 
               <div className="timeline-track">
-                {timelineSegments.map((segment) => (
-                  <div
-                    key={segment.id}
-                    className={`timeline-clip ${
-                      selectedParagraphId === segment.id ? 'selected' : ''
-                    } ${isParagraphDirty(segment.id) ? 'dirty' : ''}`}
-                    style={{
-                      left: `${(segment.start / totalDuration) * 100}%`,
-                      width: `${((segment.end - segment.start) / totalDuration) * 100}%`,
-                      backgroundColor: getSpeakerColor(segment.paragraph.speaker),
-                    }}
-                    onClick={() => handleSelectParagraph(segment.id)}
-                  >
-                    <div className="clip-content">
-                      <div className="clip-speaker">
-                        <Mic size={14} />
-                        {segment.paragraph.speaker || '旁白'}
+                {timelineSegments.map((segment) => {
+                  const safeDuration = totalDuration > 0 ? totalDuration : 1;
+                  const segmentDuration = segment.end - segment.start;
+                  return (
+                    <div
+                      key={segment.id}
+                      className={`timeline-clip ${
+                        selectedParagraphId === segment.id ? 'selected' : ''
+                      } ${isParagraphDirty(segment.id) ? 'dirty' : ''} ${
+                        playingParagraphId === segment.id ? 'playing' : ''
+                      }`}
+                      style={{
+                        left: `${(segment.start / safeDuration) * 100}%`,
+                        width: `${Math.max((segmentDuration / safeDuration) * 100, 2)}%`,
+                        backgroundColor: getSpeakerColor(segment.paragraph.speaker),
+                      }}
+                      onClick={() => handleSelectParagraph(segment.id)}
+                    >
+                      {(segment.paragraph.audioData || segment.paragraph.audioPath) && (
+                        <button
+                          className="clip-play-btn"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (playingParagraphId === segment.id) {
+                              handleStopAudio();
+                            } else {
+                              handlePlayParagraphAudio(segment.paragraph);
+                            }
+                          }}
+                          title={playingParagraphId === segment.id ? "停止" : "试听"}
+                        >
+                          {playingParagraphId === segment.id ? (
+                            <Pause size={12} />
+                          ) : (
+                            <Play size={12} />
+                          )}
+                        </button>
+                      )}
+                      <div className="clip-content">
+                        <div className="clip-speaker">
+                          <Mic size={14} />
+                          {segment.paragraph.speaker || '旁白'}
+                        </div>
+                        <div className="clip-text">
+                          {segment.paragraph.content.slice(0, 40)}
+                          {segment.paragraph.content.length > 40 ? '...' : ''}
+                        </div>
                       </div>
-                      <div className="clip-text">
-                        {segment.paragraph.content.slice(0, 40)}
-                        {segment.paragraph.content.length > 40 ? '...' : ''}
-                      </div>
+                      {isParagraphDirty(segment.id) && (
+                        <div className="clip-dirty-indicator">
+                          <AlertCircle size={10} />
+                        </div>
+                      )}
+                      {segment.paragraph.audioPath && (
+                        <div className="clip-indicator">
+                          <Music size={12} />
+                        </div>
+                      )}
                     </div>
-                    {isParagraphDirty(segment.id) && (
-                      <div className="clip-dirty-indicator">
-                        <AlertCircle size={10} />
-                      </div>
-                    )}
-                    {segment.paragraph.audioPath && (
-                      <div className="clip-indicator">
-                        <Music size={12} />
-                      </div>
-                    )}
-                  </div>
-                ))}
+                  );
+                })}
               </div>
 
               <div
                 className="playhead"
-                style={{ left: `${(currentTime / totalDuration) * 100}%` }}
+                style={{ left: `${totalDuration > 0 ? (currentTime / totalDuration) * 100 : 0}%` }}
               />
             </div>
           </div>
@@ -1570,6 +1710,27 @@ const ChapterEditor: React.FC = () => {
           align-items: center;
         }
 
+        .audio-play-btn {
+          width: 28px;
+          height: 28px;
+          border-radius: 50%;
+          background: linear-gradient(135deg, #10B981 0%, #059669 100%);
+          border: none;
+          color: white;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: all 0.2s ease;
+          padding: 0;
+          flex-shrink: 0;
+        }
+
+        .audio-play-btn:hover {
+          transform: scale(1.1);
+          box-shadow: 0 2px 8px rgba(16, 185, 129, 0.4);
+        }
+
         /* 右侧段落详情面板 */
         .paragraph-detail-panel {
           flex: 1;
@@ -1948,6 +2109,44 @@ const ChapterEditor: React.FC = () => {
 
         .timeline-clip.dirty {
           box-shadow: 0 0 0 2px rgba(251, 191, 36, 0.6), 0 2px 8px rgba(0, 0, 0, 0.3);
+        }
+
+        .timeline-clip.playing {
+          box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.8), 0 0 20px rgba(16, 185, 129, 0.4);
+          animation: playing-pulse 1s ease-in-out infinite;
+        }
+
+        @keyframes playing-pulse {
+          0%, 100% { box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.8), 0 0 20px rgba(16, 185, 129, 0.4); }
+          50% { box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.6), 0 0 30px rgba(16, 185, 129, 0.6); }
+        }
+
+        .clip-play-btn {
+          position: absolute;
+          top: 5px;
+          left: 6px;
+          width: 24px;
+          height: 24px;
+          border-radius: 50%;
+          background: rgba(0, 0, 0, 0.5);
+          border: none;
+          color: white;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: all 0.2s ease;
+          padding: 0;
+          z-index: 10;
+        }
+
+        .clip-play-btn:hover {
+          background: rgba(16, 185, 129, 0.9);
+          transform: scale(1.15);
+        }
+
+        .timeline-clip.playing .clip-play-btn {
+          background: rgba(239, 68, 68, 0.9);
         }
 
         .clip-content {

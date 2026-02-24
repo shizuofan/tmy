@@ -22,10 +22,20 @@ func NewProjectService() *ProjectService {
 // CreateProject 创建工程
 func (s *ProjectService) CreateProject(name, description string) (int64, error) {
 	utils.Info("创建工程: name=%s", name)
+
+	// 获取默认旁白音色
+	defaultVoiceID := ""
+	voiceManager := utils.GetVoiceManager()
+	if voices, err := voiceManager.GetVoices(); err == nil && len(voices) > 0 {
+		defaultVoiceID = voices[0].ID
+		utils.Debug("设置默认旁白音色: %s", defaultVoiceID)
+	}
+
 	project := &repositories.Project{
-		Name:        name,
-		Description: description,
-		LLMApiKey:   "",
+		Name:            name,
+		Description:     description,
+		LLMApiKey:       "",
+		NarratorVoiceID: defaultVoiceID,
 	}
 	if err := s.repo.Create(project); err != nil {
 		utils.Error("创建工程失败: %v", err)
@@ -148,6 +158,80 @@ func (s *ProjectService) GetProjectTTSApiKey(id int64) (string, error) {
 	return project.TTSApiKey, nil
 }
 
+// SetProjectTTSAppID 设置工程的 TTS App ID
+func (s *ProjectService) SetProjectTTSAppID(id int64, appID string) error {
+	utils.Info("设置工程 TTS App ID: id=%d", id)
+	project, err := s.repo.GetByID(id)
+	if err != nil {
+		utils.Error("设置 TTS App ID 失败 - 查找工程: id=%d, err=%v", id, err)
+		return err
+	}
+	if project == nil {
+		utils.Warn("设置 TTS App ID 失败 - 工程不存在: id=%d", id)
+		return nil
+	}
+
+	project.TTSAppID = appID
+	if err := s.repo.Update(project); err != nil {
+		utils.Error("设置 TTS App ID 失败: id=%d, err=%v", id, err)
+		return err
+	}
+	utils.Info("TTS App ID 设置成功: id=%d", id)
+	return nil
+}
+
+// GetProjectTTSAppID 获取工程的 TTS App ID
+func (s *ProjectService) GetProjectTTSAppID(id int64) (string, error) {
+	utils.Debug("获取工程 TTS App ID: id=%d", id)
+	project, err := s.repo.GetByID(id)
+	if err != nil {
+		utils.Error("获取 TTS App ID 失败: id=%d, err=%v", id, err)
+		return "", err
+	}
+	if project == nil {
+		return "", nil
+	}
+
+	return project.TTSAppID, nil
+}
+
+// SetProjectTTSToken 设置工程的 TTS Token
+func (s *ProjectService) SetProjectTTSToken(id int64, token string) error {
+	utils.Info("设置工程 TTS Token: id=%d", id)
+	project, err := s.repo.GetByID(id)
+	if err != nil {
+		utils.Error("设置 TTS Token 失败 - 查找工程: id=%d, err=%v", id, err)
+		return err
+	}
+	if project == nil {
+		utils.Warn("设置 TTS Token 失败 - 工程不存在: id=%d", id)
+		return nil
+	}
+
+	project.TTSToken = token
+	if err := s.repo.Update(project); err != nil {
+		utils.Error("设置 TTS Token 失败: id=%d, err=%v", id, err)
+		return err
+	}
+	utils.Info("TTS Token 设置成功: id=%d", id)
+	return nil
+}
+
+// GetProjectTTSToken 获取工程的 TTS Token
+func (s *ProjectService) GetProjectTTSToken(id int64) (string, error) {
+	utils.Debug("获取工程 TTS Token: id=%d", id)
+	project, err := s.repo.GetByID(id)
+	if err != nil {
+		utils.Error("获取 TTS Token 失败: id=%d, err=%v", id, err)
+		return "", err
+	}
+	if project == nil {
+		return "", nil
+	}
+
+	return project.TTSToken, nil
+}
+
 // maskApiKey 掩码显示 API Key
 func maskApiKey(key string) string {
 	if len(key) <= 8 {
@@ -200,6 +284,8 @@ func toRepoProject(p *models.Project) *repositories.Project {
 		Description:      p.Description,
 		LLMApiKey:        p.LLMApiKey,
 		TTSApiKey:        p.TTSApiKey,
+		TTSAppID:         p.TTSAppID,
+		TTSToken:         p.TTSToken,
 		KnownCharacters:  knownCharacters,
 		NarratorVoiceID:  p.NarratorVoiceID,
 		CreatedAt:        p.CreatedAt,
@@ -221,6 +307,8 @@ func toModelsProject(p *repositories.Project) *models.Project {
 		Description:      p.Description,
 		LLMApiKey:        p.LLMApiKey,
 		TTSApiKey:        p.TTSApiKey,
+		TTSAppID:         p.TTSAppID,
+		TTSToken:         p.TTSToken,
 		KnownCharacters:  knownCharacters,
 		NarratorVoiceID:  p.NarratorVoiceID,
 		CreatedAt:        p.CreatedAt,

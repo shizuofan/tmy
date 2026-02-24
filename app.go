@@ -43,6 +43,14 @@ func (a *App) startup(ctx context.Context) {
 	if err := utils.InitDB(); err != nil {
 		utils.Error("初始化数据库失败: %v", err)
 	}
+
+	// 加载音色配置
+	voiceManager := utils.GetVoiceManager()
+	if err := voiceManager.LoadConfig(); err != nil {
+		utils.Warn("加载音色配置失败: %v", err)
+	} else {
+		utils.Info("音色配置加载成功")
+	}
 }
 
 // shutdown is called when the app exits
@@ -108,6 +116,26 @@ func (a *App) SetProjectTTSApiKey(id int64, apiKey string) error {
 // GetProjectTTSApiKey 获取工程的 TTS API Key
 func (a *App) GetProjectTTSApiKey(id int64) (string, error) {
 	return a.projectController.GetProjectTTSApiKey(id)
+}
+
+// SetProjectTTSAppID 设置工程的 TTS App ID
+func (a *App) SetProjectTTSAppID(id int64, appID string) error {
+	return a.projectController.SetProjectTTSAppID(id, appID)
+}
+
+// GetProjectTTSAppID 获取工程的 TTS App ID
+func (a *App) GetProjectTTSAppID(id int64) (string, error) {
+	return a.projectController.GetProjectTTSAppID(id)
+}
+
+// SetProjectTTSToken 设置工程的 TTS Token
+func (a *App) SetProjectTTSToken(id int64, token string) error {
+	return a.projectController.SetProjectTTSToken(id, token)
+}
+
+// GetProjectTTSToken 获取工程的 TTS Token
+func (a *App) GetProjectTTSToken(id int64) (string, error) {
+	return a.projectController.GetProjectTTSToken(id)
 }
 
 // UpdateProjectKnownCharacters 更新工程的已知角色列表
@@ -185,8 +213,8 @@ func (a *App) GetParagraph(id int64) (*models.Paragraph, error) {
 }
 
 // UpdateParagraph 更新段落
-func (a *App) UpdateParagraph(id int64, content, speaker, tone, voiceID string, speed float64, audioPath string, duration float64, orderIndex int) error {
-	return a.chapterController.UpdateParagraph(id, content, speaker, tone, voiceID, speed, audioPath, duration, orderIndex)
+func (a *App) UpdateParagraph(id int64, content, speaker, tone, voiceID string, speed float64, audioPath string, audioData string, duration float64, orderIndex int) error {
+	return a.chapterController.UpdateParagraph(id, content, speaker, tone, voiceID, speed, audioPath, audioData, duration, orderIndex)
 }
 
 // DeleteParagraph 删除段落
@@ -219,8 +247,8 @@ func (a *App) SplitParagraphPreview(content string) ([]*models.Paragraph, error)
 // ========== TTS 相关方法 ==========
 
 // SetTTSConfig 设置 TTS 配置
-func (a *App) SetTTSConfig(apiKey, endpoint, appID string) {
-	a.chapterController.SetTTSConfig(apiKey, endpoint, appID)
+func (a *App) SetTTSConfig(apiKey, endpoint, appID, token string) {
+	a.chapterController.SetTTSConfig(apiKey, endpoint, appID, token)
 }
 
 // GetTTSConfig 获取 TTS 配置
@@ -263,6 +291,11 @@ func (a *App) GetCharacter(id int64) (*models.Character, error) {
 // UpdateCharacter 更新角色
 func (a *App) UpdateCharacter(id int64, name, description, voiceID string) error {
 	return a.characterController.UpdateCharacter(id, name, description, voiceID)
+}
+
+// UpdateCharacterWithDetails 更新角色（带详细信息）
+func (a *App) UpdateCharacterWithDetails(id int64, name, description, voiceID, gender, age string, aliases []string) error {
+	return a.characterController.UpdateCharacterWithDetails(id, name, description, voiceID, gender, age, aliases)
 }
 
 // DeleteCharacter 删除角色

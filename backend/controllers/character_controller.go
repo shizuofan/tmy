@@ -19,7 +19,12 @@ func NewCharacterController() *CharacterController {
 
 // CreateCharacter 创建角色
 func (c *CharacterController) CreateCharacter(projectID int64, name, description, voiceID string) (int64, error) {
-	return c.service.CreateCharacter(projectID, name, description, voiceID)
+	return c.service.CreateCharacter(projectID, name, description, voiceID, "", "", nil)
+}
+
+// CreateCharacterWithDetails 创建角色（带详细信息）
+func (c *CharacterController) CreateCharacterWithDetails(projectID int64, name, description, voiceID, gender, age string, aliases []string) (int64, error) {
+	return c.service.CreateCharacter(projectID, name, description, voiceID, gender, age, aliases)
 }
 
 // GetCharacters 获取工程角色列表
@@ -34,7 +39,12 @@ func (c *CharacterController) GetCharacter(id int64) (*models.Character, error) 
 
 // UpdateCharacter 更新角色
 func (c *CharacterController) UpdateCharacter(id int64, name, description, voiceID string) error {
-	return c.service.UpdateCharacter(id, name, description, voiceID)
+	return c.service.UpdateCharacter(id, name, description, voiceID, "", "", nil)
+}
+
+// UpdateCharacterWithDetails 更新角色（带详细信息）
+func (c *CharacterController) UpdateCharacterWithDetails(id int64, name, description, voiceID, gender, age string, aliases []string) error {
+	return c.service.UpdateCharacter(id, name, description, voiceID, gender, age, aliases)
 }
 
 // DeleteCharacter 删除角色

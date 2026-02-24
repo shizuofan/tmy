@@ -94,6 +94,14 @@ export function GetProjectTTSApiKey(arg1) {
   return window['go']['main']['App']['GetProjectTTSApiKey'](arg1);
 }
 
+export function GetProjectTTSAppID(arg1) {
+  return window['go']['main']['App']['GetProjectTTSAppID'](arg1);
+}
+
+export function GetProjectTTSToken(arg1) {
+  return window['go']['main']['App']['GetProjectTTSToken'](arg1);
+}
+
 export function GetProjects() {
   return window['go']['main']['App']['GetProjects']();
 }
@@ -134,8 +142,16 @@ export function SetProjectTTSApiKey(arg1, arg2) {
   return window['go']['main']['App']['SetProjectTTSApiKey'](arg1, arg2);
 }
 
-export function SetTTSConfig(arg1, arg2, arg3) {
-  return window['go']['main']['App']['SetTTSConfig'](arg1, arg2, arg3);
+export function SetProjectTTSAppID(arg1, arg2) {
+  return window['go']['main']['App']['SetProjectTTSAppID'](arg1, arg2);
+}
+
+export function SetProjectTTSToken(arg1, arg2) {
+  return window['go']['main']['App']['SetProjectTTSToken'](arg1, arg2);
+}
+
+export function SetTTSConfig(arg1, arg2, arg3, arg4) {
+  return window['go']['main']['App']['SetTTSConfig'](arg1, arg2, arg3, arg4);
 }
 
 export function SplitParagraph(arg1) {
@@ -154,6 +170,10 @@ export function UpdateCharacter(arg1, arg2, arg3, arg4) {
   return window['go']['main']['App']['UpdateCharacter'](arg1, arg2, arg3, arg4);
 }
 
+export function UpdateCharacterWithDetails(arg1, arg2, arg3, arg4, arg5, arg6, arg7) {
+  return window['go']['main']['App']['UpdateCharacterWithDetails'](arg1, arg2, arg3, arg4, arg5, arg6, arg7);
+}
+
 export function UpdateKnownCharacter(arg1, arg2, arg3, arg4, arg5, arg6) {
   return window['go']['main']['App']['UpdateKnownCharacter'](arg1, arg2, arg3, arg4, arg5, arg6);
 }
@@ -162,8 +182,8 @@ export function UpdateNarratorVoice(arg1, arg2) {
   return window['go']['main']['App']['UpdateNarratorVoice'](arg1, arg2);
 }
 
-export function UpdateParagraph(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9) {
-  return window['go']['main']['App']['UpdateParagraph'](arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9);
+export function UpdateParagraph(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10) {
+  return window['go']['main']['App']['UpdateParagraph'](arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10);
 }
 
 export function UpdateProject(arg1, arg2, arg3) {

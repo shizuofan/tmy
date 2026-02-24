@@ -29,8 +29,8 @@ func (c *ChapterController) GetLLMConfig() utils.LLMConfig {
 }
 
 // SetTTSConfig 设置 TTS 配置
-func (c *ChapterController) SetTTSConfig(apiKey, endpoint, appID string) {
-	c.service.SetTTSConfig(apiKey, endpoint, appID)
+func (c *ChapterController) SetTTSConfig(apiKey, endpoint, appID, token string) {
+	c.service.SetTTSConfig(apiKey, endpoint, appID, token)
 }
 
 // GetTTSConfig 获取 TTS 配置
@@ -99,8 +99,8 @@ func (c *ChapterController) GetParagraph(id int64) (*models.Paragraph, error) {
 }
 
 // UpdateParagraph 更新段落
-func (c *ChapterController) UpdateParagraph(id int64, content, speaker, tone, voiceID string, speed float64, audioPath string, duration float64, orderIndex int) error {
-	return c.service.UpdateParagraph(id, content, speaker, tone, voiceID, speed, audioPath, duration, orderIndex)
+func (c *ChapterController) UpdateParagraph(id int64, content, speaker, tone, voiceID string, speed float64, audioPath string, audioData string, duration float64, orderIndex int) error {
+	return c.service.UpdateParagraph(id, content, speaker, tone, voiceID, speed, audioPath, audioData, duration, orderIndex)
 }
 
 // DeleteParagraph 删除段落

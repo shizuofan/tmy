@@ -9,6 +9,7 @@ export namespace models {
 	    voiceId: string;
 	    speed: number;
 	    audioPath: string;
+	    audioData: string;
 	    duration: number;
 	    orderIndex: number;
 	    // Go type: time
@@ -30,6 +31,7 @@ export namespace models {
 	        this.voiceId = source["voiceId"];
 	        this.speed = source["speed"];
 	        this.audioPath = source["audioPath"];
+	        this.audioData = source["audioData"];
 	        this.duration = source["duration"];
 	        this.orderIndex = source["orderIndex"];
 	        this.createdAt = this.convertValues(source["createdAt"], null);
@@ -187,6 +189,8 @@ export namespace models {
 	    description: string;
 	    llmApiKey: string;
 	    ttsApiKey: string;
+	    ttsAppId: string;
+	    ttsToken: string;
 	    knownCharacters: CharacterInfo[];
 	    narratorVoiceId: string;
 	    // Go type: time
@@ -205,6 +209,8 @@ export namespace models {
 	        this.description = source["description"];
 	        this.llmApiKey = source["llmApiKey"];
 	        this.ttsApiKey = source["ttsApiKey"];
+	        this.ttsAppId = source["ttsAppId"];
+	        this.ttsToken = source["ttsToken"];
 	        this.knownCharacters = this.convertValues(source["knownCharacters"], CharacterInfo);
 	        this.narratorVoiceId = source["narratorVoiceId"];
 	        this.createdAt = this.convertValues(source["createdAt"], null);
@@ -235,6 +241,8 @@ export namespace models {
 	    description: string;
 	    supportedTones: string[];
 	    language: string;
+	    gender: string;
+	    category: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new Voice(source);
@@ -247,6 +255,8 @@ export namespace models {
 	        this.description = source["description"];
 	        this.supportedTones = source["supportedTones"];
 	        this.language = source["language"];
+	        this.gender = source["gender"];
+	        this.category = source["category"];
 	    }
 	}
 
@@ -274,6 +284,7 @@ export namespace utils {
 	    apiKey: string;
 	    endpoint: string;
 	    appId: string;
+	    token: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new TTSConfig(source);
@@ -284,6 +295,7 @@ export namespace utils {
 	        this.apiKey = source["apiKey"];
 	        this.endpoint = source["endpoint"];
 	        this.appId = source["appId"];
+	        this.token = source["token"];
 	    }
 	}
 

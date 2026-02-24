@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -37,11 +38,12 @@ func NewChapterService() *ChapterService {
 }
 
 // SetTTSConfig 设置TTS配置
-func (s *ChapterService) SetTTSConfig(apiKey, endpoint, appID string) {
+func (s *ChapterService) SetTTSConfig(apiKey, endpoint, appID, token string) {
 	s.ttsConfig = utils.TTSConfig{
 		APIKey:   apiKey,
 		Endpoint: endpoint,
 		AppID:    appID,
+		Token:    token,
 	}
 }
 
@@ -84,10 +86,8 @@ func (s *ChapterService) GenerateParagraphAudio(paragraphID int64) (*models.Para
 	}
 
 	ttsAPIKey := project.TTSApiKey
-	if ttsAPIKey == "" {
-		utils.Warn("项目未配置TTS API Key: projectID=%d", chapter.ProjectID)
-		return nil, fmt.Errorf("项目未配置TTS API Key，请先在项目设置中配置")
-	}
+	ttsAppID := project.TTSAppID
+	ttsToken := project.TTSToken
 
 	// 检查必需参数
 	if paragraph.Content == "" {
@@ -113,7 +113,8 @@ func (s *ChapterService) GenerateParagraphAudio(paragraphID int64) (*models.Para
 	ttsConfig := utils.TTSConfig{
 		APIKey:   ttsAPIKey,
 		Endpoint: s.ttsConfig.Endpoint,
-		AppID:    s.ttsConfig.AppID,
+		AppID:    ttsAppID,
+		Token:    ttsToken,
 	}
 	ttsClient := utils.NewTTSClient(ttsConfig)
 
@@ -124,20 +125,12 @@ func (s *ChapterService) GenerateParagraphAudio(paragraphID int64) (*models.Para
 		return nil, fmt.Errorf("音频生成失败: %w", err)
 	}
 
-	// 保存音频文件
-	audioPath, err := s.getAudioFilePath(project.ID, chapter.ID, paragraph.ID)
-	if err != nil {
-		utils.Error("获取音频文件路径失败: paragraphID=%d, err=%v", paragraphID, err)
-		return nil, fmt.Errorf("获取音频文件路径失败: %w", err)
-	}
+	// 将音频数据转换为base64保存到数据库
+	audioBase64 := base64.StdEncoding.EncodeToString(result.AudioData)
 
-	if err := ttsClient.SaveAudioToFile(result.AudioData, audioPath); err != nil {
-		utils.Error("保存音频文件失败: paragraphID=%d, err=%v", paragraphID, err)
-		return nil, fmt.Errorf("保存音频文件失败: %w", err)
-	}
-
-	// 更新段落信息
-	paragraph.AudioPath = audioPath
+	// 更新段落信息（不保存文件，只保存base64）
+	paragraph.AudioPath = ""
+	paragraph.AudioData = audioBase64
 	if result.Duration > 0 {
 		paragraph.Duration = result.Duration
 	}
@@ -147,8 +140,8 @@ func (s *ChapterService) GenerateParagraphAudio(paragraphID int64) (*models.Para
 		return nil, fmt.Errorf("更新段落失败: %w", err)
 	}
 
-	utils.Info("段落音频生成成功: paragraphID=%d, audioPath=%s, duration=%.2fs",
-		paragraphID, audioPath, paragraph.Duration)
+	utils.Info("段落音频生成成功: paragraphID=%d, audioSize=%d bytes",
+		paragraphID, len(result.AudioData))
 
 	return toModelsParagraph(paragraph), nil
 }
@@ -373,7 +366,7 @@ func (s *ChapterService) GetParagraph(id int64) (*models.Paragraph, error) {
 }
 
 // UpdateParagraph 更新段落
-func (s *ChapterService) UpdateParagraph(id int64, content, speaker, tone, voiceID string, speed float64, audioPath string, duration float64, orderIndex int) error {
+func (s *ChapterService) UpdateParagraph(id int64, content, speaker, tone, voiceID string, speed float64, audioPath string, audioData string, duration float64, orderIndex int) error {
 	paragraph, err := s.repo.GetParagraphByID(id)
 	if err != nil {
 		return err
@@ -388,6 +381,7 @@ func (s *ChapterService) UpdateParagraph(id int64, content, speaker, tone, voice
 	paragraph.VoiceID = voiceID
 	paragraph.Speed = speed
 	paragraph.AudioPath = audioPath
+	paragraph.AudioData = audioData
 	paragraph.Duration = duration
 	paragraph.OrderIndex = orderIndex
 	return s.repo.UpdateParagraph(paragraph)
@@ -611,6 +605,7 @@ func toRepoParagraph(p *models.Paragraph) *repositories.Paragraph {
 		VoiceID:    p.VoiceID,
 		Speed:      p.Speed,
 		AudioPath:  p.AudioPath,
+		AudioData:  p.AudioData,
 		Duration:   p.Duration,
 		OrderIndex: p.OrderIndex,
 		CreatedAt:  p.CreatedAt,
@@ -631,6 +626,7 @@ func toModelsParagraph(p *repositories.Paragraph) *models.Paragraph {
 		VoiceID:    p.VoiceID,
 		Speed:      p.Speed,
 		AudioPath:  p.AudioPath,
+		AudioData:  p.AudioData,
 		Duration:   p.Duration,
 		OrderIndex: p.OrderIndex,
 		CreatedAt:  p.CreatedAt,

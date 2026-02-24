@@ -64,9 +64,14 @@ func (r *characterRepository) Create(character *Character) error {
 	character.CreatedAt = now
 	character.UpdatedAt = now
 
+	aliasesJSON, _ := json.Marshal(character.Aliases)
+	chapterNamesJSON, _ := json.Marshal(character.ChapterNames)
+
 	result, err := r.getDB().Exec(
-		"INSERT INTO characters (project_id, name, description, voice_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
-		character.ProjectID, character.Name, character.Description, character.VoiceID, character.CreatedAt, character.UpdatedAt,
+		"INSERT INTO characters (project_id, name, description, voice_id, gender, age, aliases, chapter_names, last_seen_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+		character.ProjectID, character.Name, character.Description, character.VoiceID,
+		character.Gender, character.Age, string(aliasesJSON), string(chapterNamesJSON), character.LastSeenAt,
+		character.CreatedAt, character.UpdatedAt,
 	)
 	if err != nil {
 		return err
@@ -84,7 +89,7 @@ func (r *characterRepository) Create(character *Character) error {
 // GetByProjectID 获取工程的所有角色
 func (r *characterRepository) GetByProjectID(projectID int64) ([]*Character, error) {
 	rows, err := r.getDB().Query(
-		"SELECT id, project_id, name, description, voice_id, created_at, updated_at FROM characters WHERE project_id = ? ORDER BY created_at ASC",
+		"SELECT id, project_id, name, description, voice_id, gender, age, aliases, chapter_names, last_seen_at, created_at, updated_at FROM characters WHERE project_id = ? ORDER BY created_at ASC",
 		projectID,
 	)
 	if err != nil {
@@ -95,11 +100,32 @@ func (r *characterRepository) GetByProjectID(projectID int64) ([]*Character, err
 	var characters []*Character
 	for rows.Next() {
 		var character Character
+		var aliasesStr, chapterNamesStr sql.NullString
+		var lastSeenAt sql.NullInt64
+		var gender, age sql.NullString
 		if err := rows.Scan(
 			&character.ID, &character.ProjectID, &character.Name,
-			&character.Description, &character.VoiceID, &character.CreatedAt, &character.UpdatedAt,
+			&character.Description, &character.VoiceID, &gender, &age,
+			&aliasesStr, &chapterNamesStr, &lastSeenAt,
+			&character.CreatedAt, &character.UpdatedAt,
 		); err != nil {
 			return nil, err
+		}
+		// 解析可选字段
+		if gender.Valid {
+			character.Gender = gender.String
+		}
+		if age.Valid {
+			character.Age = age.String
+		}
+		if aliasesStr.Valid && aliasesStr.String != "" {
+			_ = json.Unmarshal([]byte(aliasesStr.String), &character.Aliases)
+		}
+		if chapterNamesStr.Valid && chapterNamesStr.String != "" {
+			_ = json.Unmarshal([]byte(chapterNamesStr.String), &character.ChapterNames)
+		}
+		if lastSeenAt.Valid {
+			character.LastSeenAt = lastSeenAt.Int64
 		}
 		characters = append(characters, &character)
 	}
@@ -110,12 +136,17 @@ func (r *characterRepository) GetByProjectID(projectID int64) ([]*Character, err
 // GetByID 根据 ID 获取角色
 func (r *characterRepository) GetByID(id int64) (*Character, error) {
 	var character Character
+	var aliasesStr, chapterNamesStr sql.NullString
+	var lastSeenAt sql.NullInt64
+	var gender, age sql.NullString
 	err := r.getDB().QueryRow(
-		"SELECT id, project_id, name, description, voice_id, created_at, updated_at FROM characters WHERE id = ?",
+		"SELECT id, project_id, name, description, voice_id, gender, age, aliases, chapter_names, last_seen_at, created_at, updated_at FROM characters WHERE id = ?",
 		id,
 	).Scan(
 		&character.ID, &character.ProjectID, &character.Name,
-		&character.Description, &character.VoiceID, &character.CreatedAt, &character.UpdatedAt,
+		&character.Description, &character.VoiceID, &gender, &age,
+		&aliasesStr, &chapterNamesStr, &lastSeenAt,
+		&character.CreatedAt, &character.UpdatedAt,
 	)
 
 	if err == sql.ErrNoRows {
@@ -124,15 +155,36 @@ func (r *characterRepository) GetByID(id int64) (*Character, error) {
 		return nil, err
 	}
 
+	// 解析可选字段
+	if gender.Valid {
+		character.Gender = gender.String
+	}
+	if age.Valid {
+		character.Age = age.String
+	}
+	if aliasesStr.Valid && aliasesStr.String != "" {
+		_ = json.Unmarshal([]byte(aliasesStr.String), &character.Aliases)
+	}
+	if chapterNamesStr.Valid && chapterNamesStr.String != "" {
+		_ = json.Unmarshal([]byte(chapterNamesStr.String), &character.ChapterNames)
+	}
+	if lastSeenAt.Valid {
+		character.LastSeenAt = lastSeenAt.Int64
+	}
+
 	return &character, nil
 }
 
 // Update 更新角色
 func (r *characterRepository) Update(character *Character) error {
 	character.UpdatedAt = time.Now()
+	aliasesJSON, _ := json.Marshal(character.Aliases)
+	chapterNamesJSON, _ := json.Marshal(character.ChapterNames)
 	_, err := r.getDB().Exec(
-		"UPDATE characters SET name = ?, description = ?, voice_id = ?, updated_at = ? WHERE id = ?",
-		character.Name, character.Description, character.VoiceID, character.UpdatedAt, character.ID,
+		"UPDATE characters SET name = ?, description = ?, voice_id = ?, gender = ?, age = ?, aliases = ?, chapter_names = ?, last_seen_at = ?, updated_at = ? WHERE id = ?",
+		character.Name, character.Description, character.VoiceID,
+		character.Gender, character.Age, string(aliasesJSON), string(chapterNamesJSON), character.LastSeenAt,
+		character.UpdatedAt, character.ID,
 	)
 	return err
 }

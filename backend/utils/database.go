@@ -56,6 +56,8 @@ func createTables() error {
 			description TEXT,
 			llm_api_key TEXT,
 			tts_api_key TEXT,
+			tts_app_id TEXT,
+			tts_token TEXT,
 			known_characters TEXT,
 			narrator_voice_id TEXT,
 			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -86,6 +88,16 @@ func createTables() error {
 		log.Printf("Failed to add narrator_voice_id column: %v", err)
 	}
 
+	// 迁移：为现有表添加 tts_app_id 列（如果不存在）
+	if err := addTTSAppIDColumn(); err != nil {
+		log.Printf("Failed to add tts_app_id column: %v", err)
+	}
+
+	// 迁移：为现有表添加 tts_token 列（如果不存在）
+	if err := addTTSTokenColumn(); err != nil {
+		log.Printf("Failed to add tts_token column: %v", err)
+	}
+
 	// 创建 chapters 表
 	_, err = DB.Exec(`
 		CREATE TABLE IF NOT EXISTS chapters (
@@ -114,6 +126,7 @@ func createTables() error {
 			voice_id TEXT,
 			speed REAL DEFAULT 1.0,
 			audio_path TEXT,
+			audio_data TEXT,
 			duration REAL,
 			order_index INTEGER DEFAULT 0,
 			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -125,6 +138,11 @@ func createTables() error {
 		return err
 	}
 
+	// 迁移：为现有 paragraphs 表添加 audio_data 列（如果不存在）
+	if err := addAudioDataColumn(); err != nil {
+		log.Printf("Failed to add audio_data column: %v", err)
+	}
+
 	// 创建 characters 表
 	_, err = DB.Exec(`
 		CREATE TABLE IF NOT EXISTS characters (
@@ -133,6 +151,11 @@ func createTables() error {
 			name TEXT NOT NULL,
 			description TEXT,
 			voice_id TEXT,
+			gender TEXT,
+			age TEXT,
+			aliases TEXT,
+			chapter_names TEXT,
+			last_seen_at INTEGER DEFAULT 0,
 			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 			FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
@@ -140,6 +163,11 @@ func createTables() error {
 	`)
 	if err != nil {
 		return err
+	}
+
+	// 迁移：为现有 characters 表添加新列（如果不存在）
+	if err := addCharacterColumns(); err != nil {
+		log.Printf("Failed to add character columns: %v", err)
 	}
 
 	// 创建 voices 表（预加载音色数据）
@@ -317,6 +345,92 @@ func addNarratorVoiceIDColumn() error {
 	}
 
 	log.Println("Added narrator_voice_id column to projects table")
+	return nil
+}
+
+// addTTSAppIDColumn 为 projects 表添加 tts_app_id 列（如果不存在）
+func addTTSAppIDColumn() error {
+	var count int
+	err := DB.QueryRow("SELECT COUNT(*) FROM pragma_table_info('projects') WHERE name = 'tts_app_id'").Scan(&count)
+	if err != nil {
+		return err
+	}
+	if count > 0 {
+		return nil
+	}
+	_, err = DB.Exec("ALTER TABLE projects ADD COLUMN tts_app_id TEXT")
+	if err != nil {
+		return err
+	}
+	log.Println("Added tts_app_id column to projects table")
+	return nil
+}
+
+// addTTSTokenColumn 为 projects 表添加 tts_token 列（如果不存在）
+func addTTSTokenColumn() error {
+	var count int
+	err := DB.QueryRow("SELECT COUNT(*) FROM pragma_table_info('projects') WHERE name = 'tts_token'").Scan(&count)
+	if err != nil {
+		return err
+	}
+	if count > 0 {
+		return nil
+	}
+	_, err = DB.Exec("ALTER TABLE projects ADD COLUMN tts_token TEXT")
+	if err != nil {
+		return err
+	}
+	log.Println("Added tts_token column to projects table")
+	return nil
+}
+
+// addCharacterColumns 为 characters 表添加新列（如果不存在）
+func addCharacterColumns() error {
+	columns := []struct {
+		name string
+		dtype string
+	}{
+		{"gender", "TEXT"},
+		{"age", "TEXT"},
+		{"aliases", "TEXT"},
+		{"chapter_names", "TEXT"},
+		{"last_seen_at", "INTEGER DEFAULT 0"},
+	}
+
+	for _, col := range columns {
+		var count int
+		err := DB.QueryRow("SELECT COUNT(*) FROM pragma_table_info('characters') WHERE name = ?", col.name).Scan(&count)
+		if err != nil {
+			return err
+		}
+		if count > 0 {
+			continue
+		}
+		_, err = DB.Exec("ALTER TABLE characters ADD COLUMN " + col.name + " " + col.dtype)
+		if err != nil {
+			log.Printf("Failed to add %s column: %v", col.name, err)
+		} else {
+			log.Printf("Added %s column to characters table", col.name)
+		}
+	}
+	return nil
+}
+
+// addAudioDataColumn 为 paragraphs 表添加 audio_data 列（如果不存在）
+func addAudioDataColumn() error {
+	var count int
+	err := DB.QueryRow("SELECT COUNT(*) FROM pragma_table_info('paragraphs') WHERE name = 'audio_data'").Scan(&count)
+	if err != nil {
+		return err
+	}
+	if count > 0 {
+		return nil
+	}
+	_, err = DB.Exec("ALTER TABLE paragraphs ADD COLUMN audio_data TEXT")
+	if err != nil {
+		return err
+	}
+	log.Println("Added audio_data column to paragraphs table")
 	return nil
 }
 

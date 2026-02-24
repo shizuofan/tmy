@@ -49,6 +49,10 @@ export function GetProjectLLMApiKey(arg1:number):Promise<string>;
 
 export function GetProjectTTSApiKey(arg1:number):Promise<string>;
 
+export function GetProjectTTSAppID(arg1:number):Promise<string>;
+
+export function GetProjectTTSToken(arg1:number):Promise<string>;
+
 export function GetProjects():Promise<Array<models.Project>>;
 
 export function GetTTSConfig():Promise<utils.TTSConfig>;
@@ -69,7 +73,11 @@ export function SetProjectLLMApiKey(arg1:number,arg2:string):Promise<void>;
 
 export function SetProjectTTSApiKey(arg1:number,arg2:string):Promise<void>;
 
-export function SetTTSConfig(arg1:string,arg2:string,arg3:string):Promise<void>;
+export function SetProjectTTSAppID(arg1:number,arg2:string):Promise<void>;
+
+export function SetProjectTTSToken(arg1:number,arg2:string):Promise<void>;
+
+export function SetTTSConfig(arg1:string,arg2:string,arg3:string,arg4:string):Promise<void>;
 
 export function SplitParagraph(arg1:number):Promise<Array<models.Paragraph>>;
 
@@ -79,11 +87,13 @@ export function UpdateChapter(arg1:number,arg2:string,arg3:string):Promise<void>
 
 export function UpdateCharacter(arg1:number,arg2:string,arg3:string,arg4:string):Promise<void>;
 
+export function UpdateCharacterWithDetails(arg1:number,arg2:string,arg3:string,arg4:string,arg5:string,arg6:string,arg7:Array<string>):Promise<void>;
+
 export function UpdateKnownCharacter(arg1:number,arg2:string,arg3:string,arg4:string,arg5:string,arg6:Array<string>):Promise<void>;
 
 export function UpdateNarratorVoice(arg1:number,arg2:string):Promise<void>;
 
-export function UpdateParagraph(arg1:number,arg2:string,arg3:string,arg4:string,arg5:string,arg6:number,arg7:string,arg8:number,arg9:number):Promise<void>;
+export function UpdateParagraph(arg1:number,arg2:string,arg3:string,arg4:string,arg5:string,arg6:number,arg7:string,arg8:string,arg9:number,arg10:number):Promise<void>;
 
 export function UpdateProject(arg1:number,arg2:string,arg3:string):Promise<void>;
 

@@ -11,6 +11,8 @@ type Project struct {
 	Description      string              `json:"description"`
 	LLMApiKey        string              `json:"llmApiKey"`        // 文本大模型 API Key
 	TTSApiKey        string              `json:"ttsApiKey"`        // 语音大模型 API Key
+	TTSAppID         string              `json:"ttsAppId"`         // 语音大模型 App ID
+	TTSToken         string              `json:"ttsToken"`         // 语音大模型 Token
 	KnownCharacters  []CharacterInfo     `json:"knownCharacters"`  // 已知角色列表
 	NarratorVoiceID  string              `json:"narratorVoiceId"`  // 旁白音色ID
 	CreatedAt        time.Time           `json:"createdAt"`
@@ -45,12 +47,13 @@ type Chapter struct {
 type Paragraph struct {
 	ID         int64     `json:"id"`
 	ChapterID  int64     `json:"chapterId"`
-	Content    string    `json:"content"`
+	Content    string    `json:"content"`   // 文本内容
 	Speaker    string    `json:"speaker"`   // 说话角色
 	Tone       string    `json:"tone"`      // 情感参数
 	VoiceID    string    `json:"voiceId"`   // 音色ID
 	Speed      float64   `json:"speed"`     // 语速
 	AudioPath  string    `json:"audioPath"` // 音频文件路径
+	AudioData  string    `json:"audioData"` // 音频base64数据
 	Duration   float64   `json:"duration"`  // 音频时长
 	OrderIndex int       `json:"orderIndex"`
 	CreatedAt  time.Time `json:"createdAt"`
@@ -80,6 +83,8 @@ type Voice struct {
 	Description    string   `json:"description"`
 	SupportedTones []string `json:"supportedTones"`
 	Language       string   `json:"language"`
+	Gender         string   `json:"gender"`
+	Category       string   `json:"category"`
 }
 
 // 情感类型常量 - 中文音色

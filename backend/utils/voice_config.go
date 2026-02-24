@@ -87,6 +87,8 @@ func (vm *VoiceManager) LoadConfig() error {
 			Description:    v.Description,
 			SupportedTones: v.SupportedTones,
 			Language:       v.Language,
+			Gender:         v.Gender,
+			Category:       v.Category,
 		}
 		vm.voices[v.ID] = voice
 	}

@@ -62,6 +62,26 @@ func (c *ProjectController) GetProjectTTSApiKey(id int64) (string, error) {
 	return c.service.GetProjectTTSApiKey(id)
 }
 
+// SetProjectTTSAppID 设置工程的 TTS App ID
+func (c *ProjectController) SetProjectTTSAppID(id int64, appID string) error {
+	return c.service.SetProjectTTSAppID(id, appID)
+}
+
+// GetProjectTTSAppID 获取工程的 TTS App ID
+func (c *ProjectController) GetProjectTTSAppID(id int64) (string, error) {
+	return c.service.GetProjectTTSAppID(id)
+}
+
+// SetProjectTTSToken 设置工程的 TTS Token
+func (c *ProjectController) SetProjectTTSToken(id int64, token string) error {
+	return c.service.SetProjectTTSToken(id, token)
+}
+
+// GetProjectTTSToken 获取工程的 TTS Token
+func (c *ProjectController) GetProjectTTSToken(id int64) (string, error) {
+	return c.service.GetProjectTTSToken(id)
+}
+
 // UpdateProjectKnownCharacters 更新工程的已知角色列表
 func (c *ProjectController) UpdateProjectKnownCharacters(projectID int64, characters []models.CharacterInfo) error {
 	return c.service.UpdateProjectKnownCharacters(projectID, characters)

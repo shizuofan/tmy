@@ -17,6 +17,22 @@ import {
 import api from '../utils/api';
 import { Character, Voice, GenderNameMap, AgeNameMap, GenderMale, GenderFemale, GenderUnknown, AgeChild, AgeTeen, AgeAdult, AgeSenior, AgeUnknown } from '../types';
 
+// 音色分类显示名称映射
+const CategoryNameMap: Record<string, string> = {
+  'general': '通用场景',
+  'audiobook': '有声阅读',
+  'video': '视频配音',
+  'roleplay': '角色扮演',
+  'customer_service': '客服场景',
+  'multilingual': '多语种',
+};
+
+// 性别显示名称映射（用于音色）
+const VoiceGenderNameMap: Record<string, string> = {
+  'male': '男',
+  'female': '女',
+};
+
 interface RoleManagerProps {
   projectId: number;
 }
@@ -35,6 +51,19 @@ const RoleManager: React.FC<RoleManagerProps> = ({ projectId }) => {
   const [editingGender, setEditingGender] = useState<string>('');
   const [editingAge, setEditingAge] = useState<string>('');
   const [editingDescription, setEditingDescription] = useState<string>('');
+
+  // 按分类分组的音色列表
+  const groupedVoices = useMemo(() => {
+    const groups: Record<string, Voice[]> = {};
+    voices.forEach(voice => {
+      const category = voice.category || 'other';
+      if (!groups[category]) {
+        groups[category] = [];
+      }
+      groups[category].push(voice);
+    });
+    return groups;
+  }, [voices]);
 
   // 加载角色列表和音色列表
   useEffect(() => {
@@ -195,12 +224,15 @@ const RoleManager: React.FC<RoleManagerProps> = ({ projectId }) => {
           aliasesArray
         );
       } else {
-        // 数据库中的普通角色
-        await api.updateCharacter(
+        // 数据库中的普通角色 - 使用新API保存所有字段
+        await api.updateCharacterWithDetails(
           character.id,
           character.name,
           editingDescription,
-          character.voiceId
+          character.voiceId,
+          editingGender,
+          editingAge,
+          aliasesArray
         );
       }
 
@@ -303,209 +335,216 @@ const RoleManager: React.FC<RoleManagerProps> = ({ projectId }) => {
           </div>
         ) : (
           <>
-            {/* 角色表格 */}
-            <table className="role-table">
-              <thead>
-                <tr>
-                  <th className="col-name">姓名</th>
-                  <th className="col-chapters">出现章节</th>
-                  <th className="col-aliases">别名</th>
-                  <th className="col-gender">推测性别</th>
-                  <th className="col-age">推测年龄</th>
-                  <th className="col-voice">音色</th>
-                  <th className="col-desc">简介</th>
-                  <th className="col-updated">最后发现</th>
-                  <th className="col-actions">操作</th>
-                </tr>
-              </thead>
-              <tbody>
-                {paginatedCharacters.map((character) => (
-                  <React.Fragment key={`${character.id}-${character.name}`}>
-                    <tr className={character.id === 0 ? 'narrator-row' : 'character-row'}>
-                      <td className="col-name">
-                        <div className="name-cell">
-                          <div
-                            className={`role-avatar-small ${
-                              character.id === 0 ? 'narrator-avatar' : 'known-avatar'
-                            }`}
-                          >
-                            {character.id === 0 ? (
-                              <BookOpen size={14} />
-                            ) : (
-                              <User size={14} />
+            {/* 滚动容器 */}
+            <div className="table-scroll-wrapper">
+              {/* 角色表格 */}
+              <table className="role-table">
+                <thead>
+                  <tr>
+                    <th className="col-name">姓名</th>
+                    <th className="col-chapters">出现章节</th>
+                    <th className="col-aliases">别名</th>
+                    <th className="col-gender">推测性别</th>
+                    <th className="col-age">推测年龄</th>
+                    <th className="col-voice">音色</th>
+                    <th className="col-desc">简介</th>
+                    <th className="col-updated">最后发现</th>
+                    <th className="col-actions">操作</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {paginatedCharacters.map((character) => (
+                    <React.Fragment key={`${character.id}-${character.name}`}>
+                      <tr className={character.id === 0 ? 'narrator-row' : 'character-row'}>
+                        <td className="col-name">
+                          <div className="name-cell">
+                            <div
+                              className={`role-avatar-small ${
+                                character.id === 0 ? 'narrator-avatar' : 'known-avatar'
+                              }`}
+                            >
+                              {character.id === 0 ? (
+                                <BookOpen size={14} />
+                              ) : (
+                                <User size={14} />
+                              )}
+                            </div>
+                            <span className="character-name">{character.name}</span>
+                            {character.id === 0 && (
+                              <span className="badge narrator-badge">系统</span>
+                            )}
+                            {character.id !== 0 && character.id < 0 && (
+                              <span className="badge ai-badge">AI识别</span>
                             )}
                           </div>
-                          <span className="character-name">{character.name}</span>
-                          {character.id === 0 && (
-                            <span className="badge narrator-badge">系统</span>
-                          )}
-                          {character.id !== 0 && character.id < 0 && (
-                            <span className="badge ai-badge">AI识别</span>
-                          )}
-                        </div>
-                      </td>
+                        </td>
 
-                      <td className="col-chapters">
-                        <span
-                          className="chapter-list"
-                          title={(character as any).chapterNames?.join(', ')}
-                        >
-                          {displayChapters((character as any).chapterNames)}
-                        </span>
-                      </td>
-
-                      <td className="col-aliases">
-                        {editingCharacterId === character.id ? (
-                          <input
-                            type="text"
-                            className="edit-input-inline"
-                            value={editingAliases}
-                            onChange={(e) => setEditingAliases(e.target.value)}
-                            placeholder="多个别名用逗号分隔"
-                          />
-                        ) : (
+                        <td className="col-chapters">
                           <span
-                            className="alias-list"
-                            title={displayAliases(character.aliases)}
+                            className="chapter-list"
+                            title={(character as any).chapterNames?.join(', ')}
                           >
-                            {displayAliases(character.aliases)}
+                            {displayChapters((character as any).chapterNames)}
                           </span>
-                        )}
-                      </td>
+                        </td>
 
-                      <td className="col-gender">
-                        {editingCharacterId === character.id ? (
-                          <select
-                            className="edit-select-inline"
-                            value={editingGender}
-                            onChange={(e) => setEditingGender(e.target.value)}
-                          >
-                            <option value="">选择性别</option>
-                            <option value={GenderMale}>男</option>
-                            <option value={GenderFemale}>女</option>
-                            <option value={GenderUnknown}>未知</option>
-                          </select>
-                        ) : (
-                          <span className="gender-badge">
-                            <User size={12} />
-                            {displayGender(character.gender)}
-                          </span>
-                        )}
-                      </td>
-
-                      <td className="col-age">
-                        {editingCharacterId === character.id ? (
-                          <select
-                            className="edit-select-inline"
-                            value={editingAge}
-                            onChange={(e) => setEditingAge(e.target.value)}
-                          >
-                            <option value="">选择年龄段</option>
-                            <option value={AgeChild}>儿童</option>
-                            <option value={AgeTeen}>少年</option>
-                            <option value={AgeAdult}>成人</option>
-                            <option value={AgeSenior}>老年</option>
-                            <option value={AgeUnknown}>未知</option>
-                          </select>
-                        ) : (
-                          <span className="age-badge">
-                            <Calendar size={12} />
-                            {displayAge(character.age)}
-                          </span>
-                        )}
-                      </td>
-
-                      <td className="col-voice">
-                        <div className="voice-select-cell">
-                          <Volume2 size={14} />
-                          <select
-                            className="voice-select-inline"
-                            value={character.voiceId || ''}
-                            onChange={(e) => handleVoiceChange(character.id, e.target.value)}
-                            disabled={isLoading}
-                          >
-                            <option value="">选择音色</option>
-                            {voices.map((voice) => (
-                              <option key={voice.id} value={voice.id}>
-                                {voice.name}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                      </td>
-
-                      <td className="col-desc">
-                        {editingCharacterId === character.id ? (
-                          <input
-                            type="text"
-                            className="edit-input-inline"
-                            value={editingDescription}
-                            onChange={(e) => setEditingDescription(e.target.value)}
-                            placeholder="角色简介"
-                          />
-                        ) : (
-                          <span
-                            className="description-text"
-                            title={character.description}
-                          >
-                            {character.description || '-'}
-                          </span>
-                        )}
-                      </td>
-
-                      <td className="col-updated">
-                        <span className="last-seen">
-                          <Clock size={12} />
-                          {displayLastSeen((character as any).lastSeenAt)}
-                        </span>
-                      </td>
-
-                      <td className="col-actions">
-                        {editingCharacterId === character.id ? (
-                          <div className="edit-actions-inline">
-                            <button
-                              className="btn-ghost btn-small"
-                              onClick={cancelEditCharacter}
+                        <td className="col-aliases">
+                          {editingCharacterId === character.id ? (
+                            <input
+                              type="text"
+                              className="edit-input-inline"
+                              value={editingAliases}
+                              onChange={(e) => setEditingAliases(e.target.value)}
+                              placeholder="多个别名用逗号分隔"
+                            />
+                          ) : (
+                            <span
+                              className="alias-list"
+                              title={displayAliases(character.aliases)}
                             >
-                              <X size={12} />
-                            </button>
-                            <button
-                              className="btn-primary btn-small"
-                              onClick={() => saveEditCharacter(character)}
+                              {displayAliases(character.aliases)}
+                            </span>
+                          )}
+                        </td>
+
+                        <td className="col-gender">
+                          {editingCharacterId === character.id ? (
+                            <select
+                              className="edit-select-inline"
+                              value={editingGender}
+                              onChange={(e) => setEditingGender(e.target.value)}
                             >
-                              <Edit2 size={12} />
-                            </button>
+                              <option value="">选择性别</option>
+                              <option value={GenderMale}>男</option>
+                              <option value={GenderFemale}>女</option>
+                              <option value={GenderUnknown}>未知</option>
+                            </select>
+                          ) : (
+                            <span className="gender-badge">
+                              <User size={12} />
+                              {displayGender(character.gender)}
+                            </span>
+                          )}
+                        </td>
+
+                        <td className="col-age">
+                          {editingCharacterId === character.id ? (
+                            <select
+                              className="edit-select-inline"
+                              value={editingAge}
+                              onChange={(e) => setEditingAge(e.target.value)}
+                            >
+                              <option value="">选择年龄段</option>
+                              <option value={AgeChild}>儿童</option>
+                              <option value={AgeTeen}>少年</option>
+                              <option value={AgeAdult}>成人</option>
+                              <option value={AgeSenior}>老年</option>
+                              <option value={AgeUnknown}>未知</option>
+                            </select>
+                          ) : (
+                            <span className="age-badge">
+                              <Calendar size={12} />
+                              {displayAge(character.age)}
+                            </span>
+                          )}
+                        </td>
+
+                        <td className="col-voice">
+                          <div className="voice-select-cell">
+                            <Volume2 size={14} />
+                            <select
+                              className="voice-select-inline"
+                              value={character.voiceId || ''}
+                              onChange={(e) => handleVoiceChange(character.id, e.target.value)}
+                              disabled={isLoading}
+                            >
+                              <option value="">选择音色</option>
+                              {Object.entries(groupedVoices).map(([category, categoryVoices]) => (
+                                <optgroup key={category} label={CategoryNameMap[category] || category}>
+                                  {categoryVoices.map((voice) => (
+                                    <option key={voice.id} value={voice.id}>
+                                      {voice.name} {voice.gender ? `(${VoiceGenderNameMap[voice.gender] || voice.gender})` : ''}
+                                    </option>
+                                  ))}
+                                </optgroup>
+                              ))}
+                            </select>
                           </div>
-                        ) : (
-                          <div className="actions-cell">
-                            {character.id !== 0 && (
-                              <>
-                                <button
-                                  className="btn-icon btn-edit"
-                                  onClick={() => startEditCharacter(character)}
-                                  disabled={isLoading}
-                                  title="编辑"
-                                >
-                                  <Edit2 size={14} />
-                                </button>
-                                <button
-                                  className="btn-icon btn-danger"
-                                  onClick={() => handleDeleteCharacter(character.id)}
-                                  disabled={isLoading}
-                                  title="删除"
-                                >
-                                  <Trash2 size={14} />
-                                </button>
-                              </>
-                            )}
-                          </div>
-                        )}
-                      </td>
-                    </tr>
-                  </React.Fragment>
-                ))}
-              </tbody>
-            </table>
+                        </td>
+
+                        <td className="col-desc">
+                          {editingCharacterId === character.id ? (
+                            <input
+                              type="text"
+                              className="edit-input-inline"
+                              value={editingDescription}
+                              onChange={(e) => setEditingDescription(e.target.value)}
+                              placeholder="角色简介"
+                            />
+                          ) : (
+                            <span
+                              className="description-text"
+                              title={character.description}
+                            >
+                              {character.description || '-'}
+                            </span>
+                          )}
+                        </td>
+
+                        <td className="col-updated">
+                          <span className="last-seen">
+                            <Clock size={12} />
+                            {displayLastSeen((character as any).lastSeenAt)}
+                          </span>
+                        </td>
+
+                        <td className="col-actions">
+                          {editingCharacterId === character.id ? (
+                            <div className="edit-actions-inline">
+                              <button
+                                className="btn-ghost btn-small"
+                                onClick={cancelEditCharacter}
+                              >
+                                <X size={12} />
+                              </button>
+                              <button
+                                className="btn-primary btn-small"
+                                onClick={() => saveEditCharacter(character)}
+                              >
+                                <Edit2 size={12} />
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="actions-cell">
+                              {character.id !== 0 && (
+                                <>
+                                  <button
+                                    className="btn-icon btn-edit"
+                                    onClick={() => startEditCharacter(character)}
+                                    disabled={isLoading}
+                                    title="编辑"
+                                  >
+                                    <Edit2 size={14} />
+                                  </button>
+                                  <button
+                                    className="btn-icon btn-danger"
+                                    onClick={() => handleDeleteCharacter(character.id)}
+                                    disabled={isLoading}
+                                    title="删除"
+                                  >
+                                    <Trash2 size={14} />
+                                  </button>
+                                </>
+                              )}
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    </React.Fragment>
+                  ))}
+                </tbody>
+              </table>
+            </div>
 
             {/* 分页器 */}
             {totalPages > 1 && (
@@ -640,6 +679,30 @@ const RoleManager: React.FC<RoleManagerProps> = ({ projectId }) => {
           background-color: #151E2B;
         }
 
+        .table-scroll-wrapper {
+          flex: 1;
+          overflow-x: auto;
+          overflow-y: auto;
+        }
+
+        .table-scroll-wrapper::-webkit-scrollbar {
+          height: 10px;
+          width: 10px;
+        }
+
+        .table-scroll-wrapper::-webkit-scrollbar-track {
+          background: #1A2432;
+        }
+
+        .table-scroll-wrapper::-webkit-scrollbar-thumb {
+          background: #334155;
+          border-radius: 5px;
+        }
+
+        .table-scroll-wrapper::-webkit-scrollbar-thumb:hover {
+          background: #475569;
+        }
+
         .loading-state {
           display: flex;
           flex-direction: column;
@@ -718,16 +781,16 @@ const RoleManager: React.FC<RoleManagerProps> = ({ projectId }) => {
           background-color: rgba(0, 168, 255, 0.04);
         }
 
-        /* 列宽 */
-        .col-name { width: 160px; min-width: 160px; }
-        .col-chapters { width: 140px; min-width: 140px; }
-        .col-aliases { width: 140px; min-width: 140px; }
-        .col-gender { width: 100px; min-width: 100px; }
-        .col-age { width: 100px; min-width: 100px; }
-        .col-voice { width: 160px; min-width: 160px; }
-        .col-desc { width: auto; min-width: 180px; }
-        .col-updated { width: 110px; min-width: 110px; }
-        .col-actions { width: 100px; min-width: 100px; }
+        /* 列宽 - 优化后更紧凑 */
+        .col-name { width: 150px; min-width: 150px; }
+        .col-chapters { width: 100px; min-width: 100px; }
+        .col-aliases { width: 110px; min-width: 110px; }
+        .col-gender { width: 90px; min-width: 90px; }
+        .col-age { width: 90px; min-width: 90px; }
+        .col-voice { width: 140px; min-width: 140px; }
+        .col-desc { width: 200px; min-width: 200px; }
+        .col-updated { width: 95px; min-width: 95px; }
+        .col-actions { width: 90px; min-width: 90px; }
 
         .name-cell {
           display: flex;

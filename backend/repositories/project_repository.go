@@ -14,6 +14,8 @@ type Project struct {
 	Description      string    `json:"description"`
 	LLMApiKey        string    `json:"llmApiKey"`        // 文本大模型 API Key
 	TTSApiKey        string    `json:"ttsApiKey"`        // 语音大模型 API Key
+	TTSAppID         string    `json:"ttsAppId"`         // 语音大模型 App ID
+	TTSToken         string    `json:"ttsToken"`         // 语音大模型 Token
 	KnownCharacters  string    `json:"knownCharacters"`  // 已知角色列表(JSON格式存储
 	NarratorVoiceID  string    `json:"narratorVoiceId"`  // 旁白音色ID
 	CreatedAt        time.Time `json:"createdAt"`
@@ -50,8 +52,8 @@ func (r *projectRepository) Create(project *Project) error {
 	project.UpdatedAt = now
 
 	result, err := r.getDB().Exec(
-		"INSERT INTO projects (name, description, llm_api_key, tts_api_key, known_characters, narrator_voice_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-		project.Name, project.Description, project.LLMApiKey, project.TTSApiKey, project.KnownCharacters, project.NarratorVoiceID, project.CreatedAt, project.UpdatedAt,
+		"INSERT INTO projects (name, description, llm_api_key, tts_api_key, tts_app_id, tts_token, known_characters, narrator_voice_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+		project.Name, project.Description, project.LLMApiKey, project.TTSApiKey, project.TTSAppID, project.TTSToken, project.KnownCharacters, project.NarratorVoiceID, project.CreatedAt, project.UpdatedAt,
 	)
 	if err != nil {
 		return err
@@ -68,7 +70,7 @@ func (r *projectRepository) Create(project *Project) error {
 
 // GetAll 获取所有工程
 func (r *projectRepository) GetAll() ([]*Project, error) {
-	rows, err := r.getDB().Query("SELECT id, name, description, llm_api_key, tts_api_key, known_characters, narrator_voice_id, created_at, updated_at FROM projects ORDER BY created_at DESC")
+	rows, err := r.getDB().Query("SELECT id, name, description, llm_api_key, tts_api_key, tts_app_id, tts_token, known_characters, narrator_voice_id, created_at, updated_at FROM projects ORDER BY created_at DESC")
 	if err != nil {
 		return nil, err
 	}
@@ -79,13 +81,17 @@ func (r *projectRepository) GetAll() ([]*Project, error) {
 		var project Project
 		var llmApiKey sql.NullString
 		var ttsApiKey sql.NullString
+		var ttsAppID sql.NullString
+		var ttsToken sql.NullString
 		var knownCharacters sql.NullString
 		var narratorVoiceID sql.NullString
-		if err := rows.Scan(&project.ID, &project.Name, &project.Description, &llmApiKey, &ttsApiKey, &knownCharacters, &narratorVoiceID, &project.CreatedAt, &project.UpdatedAt); err != nil {
+		if err := rows.Scan(&project.ID, &project.Name, &project.Description, &llmApiKey, &ttsApiKey, &ttsAppID, &ttsToken, &knownCharacters, &narratorVoiceID, &project.CreatedAt, &project.UpdatedAt); err != nil {
 			return nil, err
 		}
 		project.LLMApiKey = llmApiKey.String
 		project.TTSApiKey = ttsApiKey.String
+		project.TTSAppID = ttsAppID.String
+		project.TTSToken = ttsToken.String
 		project.KnownCharacters = knownCharacters.String
 		project.NarratorVoiceID = narratorVoiceID.String
 		projects = append(projects, &project)
@@ -99,12 +105,14 @@ func (r *projectRepository) GetByID(id int64) (*Project, error) {
 	var project Project
 	var llmApiKey sql.NullString
 	var ttsApiKey sql.NullString
+	var ttsAppID sql.NullString
+	var ttsToken sql.NullString
 	var knownCharacters sql.NullString
 	var narratorVoiceID sql.NullString
 	err := r.getDB().QueryRow(
-		"SELECT id, name, description, llm_api_key, tts_api_key, known_characters, narrator_voice_id, created_at, updated_at FROM projects WHERE id = ?",
+		"SELECT id, name, description, llm_api_key, tts_api_key, tts_app_id, tts_token, known_characters, narrator_voice_id, created_at, updated_at FROM projects WHERE id = ?",
 		id,
-	).Scan(&project.ID, &project.Name, &project.Description, &llmApiKey, &ttsApiKey, &knownCharacters, &narratorVoiceID, &project.CreatedAt, &project.UpdatedAt)
+	).Scan(&project.ID, &project.Name, &project.Description, &llmApiKey, &ttsApiKey, &ttsAppID, &ttsToken, &knownCharacters, &narratorVoiceID, &project.CreatedAt, &project.UpdatedAt)
 
 	if err == sql.ErrNoRows {
 		return nil, nil
@@ -114,6 +122,8 @@ func (r *projectRepository) GetByID(id int64) (*Project, error) {
 
 	project.LLMApiKey = llmApiKey.String
 	project.TTSApiKey = ttsApiKey.String
+	project.TTSAppID = ttsAppID.String
+	project.TTSToken = ttsToken.String
 	project.KnownCharacters = knownCharacters.String
 	project.NarratorVoiceID = narratorVoiceID.String
 	return &project, nil
@@ -123,8 +133,8 @@ func (r *projectRepository) GetByID(id int64) (*Project, error) {
 func (r *projectRepository) Update(project *Project) error {
 	project.UpdatedAt = time.Now()
 	_, err := r.getDB().Exec(
-		"UPDATE projects SET name = ?, description = ?, llm_api_key = ?, tts_api_key = ?, known_characters = ?, narrator_voice_id = ?, updated_at = ? WHERE id = ?",
-		project.Name, project.Description, project.LLMApiKey, project.TTSApiKey, project.KnownCharacters, project.NarratorVoiceID, project.UpdatedAt, project.ID,
+		"UPDATE projects SET name = ?, description = ?, llm_api_key = ?, tts_api_key = ?, tts_app_id = ?, tts_token = ?, known_characters = ?, narrator_voice_id = ?, updated_at = ? WHERE id = ?",
+		project.Name, project.Description, project.LLMApiKey, project.TTSApiKey, project.TTSAppID, project.TTSToken, project.KnownCharacters, project.NarratorVoiceID, project.UpdatedAt, project.ID,
 	)
 	return err
 }

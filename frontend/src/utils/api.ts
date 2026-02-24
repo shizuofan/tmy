@@ -11,6 +11,10 @@ import {
   GetProjectLLMApiKey,
   SetProjectTTSApiKey,
   GetProjectTTSApiKey,
+  SetProjectTTSAppID,
+  GetProjectTTSAppID,
+  SetProjectTTSToken,
+  GetProjectTTSToken,
   GetProjectKnownCharacters,
   UpdateProjectKnownCharacters,
   DeleteProjectKnownCharacter,
@@ -26,6 +30,7 @@ import {
   GetCharacters,
   GetCharacter,
   UpdateCharacter,
+  UpdateCharacterWithDetails,
   DeleteCharacter,
   UpdateNarratorVoice,
   GetVoices,
@@ -132,6 +137,44 @@ export const api = {
       return result || "";
     } catch (error) {
       console.error("Failed to get project TTS API key:", error);
+      throw error;
+    }
+  },
+
+  setProjectTTSAppID: async (id: number, appID: string): Promise<void> => {
+    try {
+      await SetProjectTTSAppID(id, appID);
+    } catch (error) {
+      console.error("Failed to set project TTS App ID:", error);
+      throw error;
+    }
+  },
+
+  getProjectTTSAppID: async (id: number): Promise<string> => {
+    try {
+      const result = await GetProjectTTSAppID(id);
+      return result || "";
+    } catch (error) {
+      console.error("Failed to get project TTS App ID:", error);
+      throw error;
+    }
+  },
+
+  setProjectTTSToken: async (id: number, token: string): Promise<void> => {
+    try {
+      await SetProjectTTSToken(id, token);
+    } catch (error) {
+      console.error("Failed to set project TTS Token:", error);
+      throw error;
+    }
+  },
+
+  getProjectTTSToken: async (id: number): Promise<string> => {
+    try {
+      const result = await GetProjectTTSToken(id);
+      return result || "";
+    } catch (error) {
+      console.error("Failed to get project TTS Token:", error);
       throw error;
     }
   },
@@ -304,11 +347,12 @@ export const api = {
     voiceId: string,
     speed: number,
     audioPath: string = "",
+    audioData: string = "",
     duration: number = 0,
     orderIndex: number = 0
   ): Promise<void> => {
     try {
-      await UpdateParagraph(id, content, speaker, tone, voiceId, speed, audioPath, duration, orderIndex);
+      await UpdateParagraph(id, content, speaker, tone, voiceId, speed, audioPath, audioData, duration, orderIndex);
     } catch (error) {
       console.error("Failed to update paragraph:", error);
       throw error;
@@ -421,6 +465,23 @@ export const api = {
       await UpdateCharacter(id, name, description, voiceId);
     } catch (error) {
       console.error("Failed to update character:", error);
+      throw error;
+    }
+  },
+
+  updateCharacterWithDetails: async (
+    id: number,
+    name: string,
+    description: string,
+    voiceId: string,
+    gender: string,
+    age: string,
+    aliases: string[]
+  ): Promise<void> => {
+    try {
+      await UpdateCharacterWithDetails(id, name, description, voiceId, gender, age, aliases);
+    } catch (error) {
+      console.error("Failed to update character with details:", error);
       throw error;
     }
   },

@@ -13,12 +13,14 @@ const ProjectDetailsPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [isEditingLLMApiKey, setIsEditingLLMApiKey] = useState(false);
-  const [isEditingTTSApiKey, setIsEditingTTSApiKey] = useState(false);
+  const [isEditingTTSConfig, setIsEditingTTSConfig] = useState(false);
   const [editProject, setEditProject] = useState({ name: '', description: '' });
   const [editLLMApiKey, setEditLLMApiKey] = useState('');
   const [editTTSApiKey, setEditTTSApiKey] = useState('');
+  const [editTTSAppID, setEditTTSAppID] = useState('');
+  const [editTTSToken, setEditTTSToken] = useState('');
   const [isSavingLLMApiKey, setIsSavingLLMApiKey] = useState(false);
-  const [isSavingTTSApiKey, setIsSavingTTSApiKey] = useState(false);
+  const [isSavingTTSConfig, setIsSavingTTSConfig] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -38,6 +40,8 @@ const ProjectDetailsPage: React.FC = () => {
         });
         setEditLLMApiKey(data.llmApiKey || '');
         setEditTTSApiKey(data.ttsApiKey || '');
+        setEditTTSAppID(data.ttsAppId || '');
+        setEditTTSToken(data.ttsToken || '');
       }
     } catch (error) {
       console.error('Failed to load project:', error);
@@ -71,17 +75,19 @@ const ProjectDetailsPage: React.FC = () => {
     setIsSavingLLMApiKey(false);
   };
 
-  const handleSaveTTSApiKey = async () => {
+  const handleSaveTTSConfig = async () => {
     if (!id) return;
-    setIsSavingTTSApiKey(true);
+    setIsSavingTTSConfig(true);
     try {
       await api.setProjectTTSApiKey(parseInt(id), editTTSApiKey);
-      setIsEditingTTSApiKey(false);
+      await api.setProjectTTSAppID(parseInt(id), editTTSAppID);
+      await api.setProjectTTSToken(parseInt(id), editTTSToken);
+      setIsEditingTTSConfig(false);
       loadProject(parseInt(id));
     } catch (error) {
-      console.error('Failed to save TTS API key:', error);
+      console.error('Failed to save TTS config:', error);
     }
-    setIsSavingTTSApiKey(false);
+    setIsSavingTTSConfig(false);
   };
 
   // 隐藏 API Key 的显示
@@ -293,29 +299,50 @@ const ProjectDetailsPage: React.FC = () => {
 
                 <div className="api-key-divider"></div>
 
-                {/* 语音大模型 API Key */}
+                {/* 语音大模型配置 */}
                 <div className="api-key-item">
                   <div className="api-key-header">
                     <h3>语音大模型</h3>
                   </div>
-                  {!isEditingTTSApiKey ? (
+                  {!isEditingTTSConfig ? (
                     <div className="api-key-status-row">
-                      <div className={`status-indicator ${project.ttsApiKey ? 'active' : 'inactive'}`}>
-                        {project.ttsApiKey ? '已配置' : '未配置'}
+                      <div className={`status-indicator ${(project.ttsApiKey || project.ttsAppId || project.ttsToken) ? 'active' : 'inactive'}`}>
+                        {(project.ttsApiKey || project.ttsAppId || project.ttsToken) ? '已配置' : '未配置'}
                       </div>
-                      {project.ttsApiKey && (
-                        <span className="api-key-masked">{maskApiKey(project.ttsApiKey)}</span>
-                      )}
                     </div>
                   ) : (
-                    <div className="api-key-edit-row">
+                    <div className="api-key-edit-full">
                       <div className="form-group">
+                        <label htmlFor="tts-api-key">API Key</label>
                         <input
+                          id="tts-api-key"
                           type="password"
                           value={editTTSApiKey}
                           onChange={(e) => setEditTTSApiKey(e.target.value)}
                           placeholder="请输入语音大模型 API Key"
-                          disabled={isSavingTTSApiKey}
+                          disabled={isSavingTTSConfig}
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label htmlFor="tts-app-id">App ID</label>
+                        <input
+                          id="tts-app-id"
+                          type="text"
+                          value={editTTSAppID}
+                          onChange={(e) => setEditTTSAppID(e.target.value)}
+                          placeholder="请输入语音大模型 App ID"
+                          disabled={isSavingTTSConfig}
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label htmlFor="tts-token">Token</label>
+                        <input
+                          id="tts-token"
+                          type="password"
+                          value={editTTSToken}
+                          onChange={(e) => setEditTTSToken(e.target.value)}
+                          placeholder="请输入语音大模型 Token"
+                          disabled={isSavingTTSConfig}
                         />
                       </div>
                     </div>
@@ -324,12 +351,12 @@ const ProjectDetailsPage: React.FC = () => {
 
                 {/* 编辑按钮 */}
                 <div className="api-key-actions">
-                  {(!isEditingLLMApiKey && !isEditingTTSApiKey) ? (
+                  {(!isEditingLLMApiKey && !isEditingTTSConfig) ? (
                     <button
                       className="btn-ghost"
                       onClick={() => {
                         setIsEditingLLMApiKey(true);
-                        setIsEditingTTSApiKey(true);
+                        setIsEditingTTSConfig(true);
                       }}
                       disabled={isLoading}
                     >
@@ -341,11 +368,13 @@ const ProjectDetailsPage: React.FC = () => {
                         className="btn-secondary"
                         onClick={() => {
                           setIsEditingLLMApiKey(false);
-                          setIsEditingTTSApiKey(false);
+                          setIsEditingTTSConfig(false);
                           setEditLLMApiKey(project.llmApiKey || '');
                           setEditTTSApiKey(project.ttsApiKey || '');
+                          setEditTTSAppID(project.ttsAppId || '');
+                          setEditTTSToken(project.ttsToken || '');
                         }}
-                        disabled={isSavingLLMApiKey || isSavingTTSApiKey}
+                        disabled={isSavingLLMApiKey || isSavingTTSConfig}
                       >
                         <X size={16} />
                         取消
@@ -354,12 +383,12 @@ const ProjectDetailsPage: React.FC = () => {
                         className="btn-primary"
                         onClick={async () => {
                           if (isEditingLLMApiKey) await handleSaveLLMApiKey();
-                          if (isEditingTTSApiKey) await handleSaveTTSApiKey();
+                          if (isEditingTTSConfig) await handleSaveTTSConfig();
                         }}
-                        disabled={isSavingLLMApiKey || isSavingTTSApiKey}
+                        disabled={isSavingLLMApiKey || isSavingTTSConfig}
                       >
                         <Save size={16} />
-                        {(isSavingLLMApiKey || isSavingTTSApiKey) ? '保存中...' : '保存'}
+                        {(isSavingLLMApiKey || isSavingTTSConfig) ? '保存中...' : '保存'}
                       </button>
                     </div>
                   )}
@@ -745,6 +774,25 @@ const ProjectDetailsPage: React.FC = () => {
           flex-direction: row;
           align-items: center;
           gap: 0;
+        }
+
+        .api-key-edit-full {
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+          flex: 1;
+          width: 100%;
+        }
+
+        .api-key-edit-full .form-group {
+          flex-direction: column;
+          gap: 6px;
+        }
+
+        .api-key-edit-full .form-group label {
+          color: #94A3B8;
+          font-size: 0.8rem;
+          font-weight: 500;
         }
 
         .api-key-divider {
